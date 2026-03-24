@@ -1,10 +1,12 @@
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
 #include "alpha_beta.h"
 #include "caro.h"
+#include "ybwc.h"
 
 int main() {
   namespace chrono = std::chrono;
@@ -12,7 +14,7 @@ int main() {
   Caro game(8, 8, 5);
   auto [m, n] = game.GetBoardSize();
 
-  AlphaBetaAgent bot;
+  std::unique_ptr<YBWCAgent> bot = std::make_unique<YBWCAgent>(4, 3, 4);
 
   std::stringstream ss;
   std::string input_str;
@@ -53,8 +55,8 @@ int main() {
     // Computer's turn
 
     auto start_time = chrono::steady_clock::now();
-    auto [comp_x, comp_y] = bot.GetMove(game);
-    bool computer_move_status = game.PlaceMove(comp_x, comp_y, bot.GetMark());
+    auto [comp_x, comp_y] = bot->GetMove(game);
+    bool computer_move_status = game.PlaceMove(comp_x, comp_y, bot->GetMark());
     auto end_time = chrono::steady_clock::now();
     chrono::duration<float, std::milli> duration = end_time - start_time;
     std::cout << std::format("Computer move: ({}, {}) calculated in {:.2f} ms\n", comp_x, comp_y,
