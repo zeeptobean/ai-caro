@@ -1,12 +1,24 @@
 #include "caro.h"
 
 #include <iostream>
+#include <random>
 
 Caro::Caro(unsigned m, unsigned n, unsigned k) {
   if (m < k && n < k) {
     throw std::invalid_argument("Invalid board specifications");
   }
   board_ = std::vector<std::vector<char>>(m, std::vector<char>(n, '.'));
+
+  std::mt19937_64 rng(1337);
+  std::uniform_int_distribution<uint64_t> dist;
+  zobrist_table_ = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>(
+      m, std::vector<std::pair<uint64_t, uint64_t>>(n, {0, 0}));
+
+  for (unsigned i = 0; i < m; ++i) {
+    for (unsigned j = 0; j < n; ++j) {
+      zobrist_table_[i][j] = {dist(rng), dist(rng)};
+    }
+  }
   this->m_ = m;
   this->n_ = n;
   this->k_ = k;
@@ -26,11 +38,18 @@ void Caro::Display() const {
     return false;  // Invalid move
   }
   board_[x][y] = mark;
+
+  const auto& pp = zobrist_table_[x][y];
+  current_hash_ ^= (mark == kMarkPlayer) ? pp.first : pp.second;
   return true;
 }
 
 void Caro::UndoMove(unsigned x, unsigned y) {
   if (x < m_ && y < n_) {
+    const auto& pp = zobrist_table_[x][y];
+    char mark = board_[x][y];
+    current_hash_ ^= (mark == kMarkPlayer) ? pp.first : pp.second;
+
     board_[x][y] = '.';
   }
 }
