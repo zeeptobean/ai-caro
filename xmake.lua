@@ -1,12 +1,11 @@
 add_rules("mode.debug", "mode.release")
+set_kind("binary")
+add_files("*.cc")
+add_defines("LOCAL_FREOPEN")
+set_targetdir("bin")
+set_languages("c++20")
 
 target("ai-caro")
-    set_kind("binary")
-    add_files("*.cc")
-    add_defines("LOCAL_FREOPEN")
-    set_targetdir("bin")
-    set_languages("c++20")
-
     if is_mode("debug") then
         set_symbols("debug")
     elseif is_mode("release") then
@@ -33,16 +32,29 @@ target("ai-caro")
                 "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
                 "-Wcast-qual", "-Wcast-align", "-march=nehalem"
             )
-            target:add("ldflags", "-static-libstdc++", "-static-libgcc")
 
-            if target:toolchain("gcc") then
-                target:add("ldflags", "-flto")
-            end
-
-            if is_plat("windows") then
-                target:add("ldflags", "-static")
+            if is_mode("release") then
+                target:add("ldflags", "-static-libstdc++", "-static-libgcc")
+                if target:toolchain("gcc") then
+                    target:add("ldflags", "-flto")
+                end
+    
+                if is_plat("windows") then
+                    target:add("ldflags", "-static")
+                end
             end
         else 
             raise("Unsupported toolchain: " .. (target:get("toolchain") or "unknown"))
         end
     end)
+
+-- Dev target: release build without static linking
+target("ai-caro-dev")
+    set_toolchains("gcc")
+    set_optimize("faster")
+    set_symbols("hidden")
+    set_strip("all")
+    add_cxxflags("-Werror", "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
+        "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
+        "-Wcast-qual", "-Wcast-align", "-march=native"
+    )
