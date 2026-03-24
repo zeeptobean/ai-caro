@@ -4,22 +4,20 @@
   Integer best_value = Integer::NegInf();
   std::pair<unsigned, unsigned> best_move = {0, 0};
   bool move_found = false;
-  auto [m, n] = state.GetBoardSize();
 
-  for (unsigned i = 0; i < m; i++) {
-    for (unsigned j = 0; j < n; j++) {
-      if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
+  auto move_list = state.GetCandidateMoves(move_radius_);
 
-      auto value =
-          AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), move_radius_, false, max_depth_);
+  for (const auto& [i, j] : move_list) {
+    if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
 
-      state.UndoMove(i, j);  // backtrack
+    auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, max_depth_);
 
-      if (!move_found || value > best_value) {
-        best_value = value;
-        best_move = {i, j};
-        move_found = true;
-      }
+    state.UndoMove(i, j);  // backtrack
+
+    if (!move_found || value > best_value) {
+      best_value = value;
+      best_move = {i, j};
+      move_found = true;
     }
   }
 
@@ -87,7 +85,7 @@ Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
 }
 
 Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
-                                  int move_radius, bool is_maximizing, int max_depth) {
+                                  bool is_maximizing, int max_depth) {
   Caro::GameState gs = state.CheckGameState();
   Integer ret = Integer::Zero();
   if (gs != Caro::GameState::kNormal) {
@@ -104,7 +102,7 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
   }
 
   bool has_move = false;
-  auto move_list = state.GetCandidateMoves(move_radius);
+  auto move_list = state.GetCandidateMoves(move_radius_);
 
   if (is_maximizing) {
     Integer best = Integer::NegInf();
@@ -112,7 +110,7 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
       if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
       has_move = true;
 
-      auto score = AlphaBeta(state, depth + 1, alpha, beta, move_radius, false, max_depth);
+      auto score = AlphaBeta(state, depth + 1, alpha, beta, false, max_depth);
       state.UndoMove(i, j);  // Backtracking
 
       if (score > best) best = score;
@@ -126,7 +124,7 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
       if (!state.PlaceMove(i, j, Caro::kMarkPlayer)) continue;
       has_move = true;
 
-      auto score = AlphaBeta(state, depth + 1, alpha, beta, move_radius, true, max_depth);
+      auto score = AlphaBeta(state, depth + 1, alpha, beta, true, max_depth);
       state.UndoMove(i, j);  // Backtracking
 
       if (score < best) best = score;

@@ -10,7 +10,7 @@ class Agent {
   virtual ~Agent() = default;
   virtual std::pair<unsigned, unsigned> GetMove(Caro game_state) = 0;
 
-  void SetMark(char mark) { my_mark_ = mark; }
+  // void SetMark(char mark) { my_mark_ = mark; }
   char GetMark() const { return my_mark_; }
 
  protected:

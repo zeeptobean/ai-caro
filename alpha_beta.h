@@ -21,8 +21,8 @@ class AlphaBetaAgent : public Agent {
   // Heuristic evaluation function for non-terminal states
   Integer EvaluateBoard(const Caro& state) const;
 
-  Integer AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta, int move_radius,
-                    bool is_maximizing, int max_depth);
+  Integer AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta, bool is_maximizing,
+                    int max_depth);
 };
 
 #endif  // AICARO_ALPHA_BETA_H
