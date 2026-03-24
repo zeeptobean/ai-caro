@@ -1,0 +1,5 @@
+.vscode/*
+!.vscode/settings.json
+.xmake/*
+bin/*
+build/*
