@@ -11,8 +11,9 @@ class YBWCAgent : public Agent {
   unsigned max_threads_;
 
  public:
-  explicit YBWCAgent(int depth = 4, int radius = 3, unsigned threads = 4)
-      : max_depth_(depth < 1 ? 1 : depth), move_radius_(radius), max_threads_(threads) {}
+  // time_soft_limit as limit might not be strictly enforced due to the nature of parallel search
+  explicit YBWCAgent(unsigned threads = 4, unsigned time_soft_limit_ms = 2000, int max_depth = 20,
+                     int radius = 3);
 
   [[nodiscard]] std::pair<unsigned, unsigned> GetMove(Caro state) override;
 
@@ -25,10 +26,10 @@ class YBWCAgent : public Agent {
   Integer EvaluateBoard(const Caro& state) const;
 
   Integer SearchYBWC(Caro& state, int depth, Integer alpha, Integer beta, bool is_maximizing,
-                     unsigned available_threads);
+                     int max_depth, unsigned available_threads);
 
   Integer SequentialAlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
-                              bool is_maximizing,
+                              bool is_maximizing, int max_depth,
                               const std::vector<std::pair<unsigned, unsigned>>& moves,
                               Integer best_score, size_t start_idx);
 };

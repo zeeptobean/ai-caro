@@ -1,6 +1,7 @@
 #ifndef AICARO_AGENT_H
 #define AICARO_AGENT_H
 
+#include <atomic>
 #include <chrono>
 #include <utility>
 
@@ -18,7 +19,8 @@ class Agent {
   char my_mark_ = Caro::kMarkComputer;          // default
   std::chrono::milliseconds time_limit_{2000};  // default 2 seconds
   std::chrono::steady_clock::time_point start_time_;
-  int node_counter_ = 0;
+  std::atomic<int> node_counter_{0};
+  unsigned timer_check_factor = 10;  // Default: Check time every 2^10 = 1024 nodes
 
   struct TimeOutException : public std::exception {};
 

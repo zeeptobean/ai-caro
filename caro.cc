@@ -30,7 +30,7 @@ Caro::Caro(unsigned m, unsigned n, unsigned k) {
 void Caro::Display() const {
   for (const auto& row : board_) {
     for (const auto& cell : row) {
-      std::cout << cell;
+      std::cout << cell << " ";
     }
     std::cout << "\n";
   }

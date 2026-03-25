@@ -5,31 +5,52 @@
 #include <mutex>
 #include <vector>
 
+YBWCAgent::YBWCAgent(unsigned threads, unsigned time_soft_limit_ms, int max_depth, int radius)
+    : max_depth_(max_depth < 1 ? 1 : max_depth), move_radius_(radius), max_threads_(threads) {
+  time_limit_ = std::chrono::milliseconds(time_soft_limit_ms);
+  timer_check_factor = 6;
+}
+
 std::pair<unsigned, unsigned> YBWCAgent::GetMove(Caro state) {
-  Integer best_value = Integer::NegInf();
+  start_time_ = std::chrono::steady_clock::now();
   std::pair<unsigned, unsigned> best_move = {0, 0};
 
   auto moves = state.GetCandidateMoves(move_radius_);
   if (moves.empty()) return best_move;
 
-  for (const auto& [i, j] : moves) {
-    if (!state.PlaceMove(i, j, my_mark_)) continue;
+  // Iterative deepening
+  for (int d = 1; d <= max_depth_; d++) {
+    try {
+      Integer best_value = Integer::NegInf();
+      std::pair<unsigned, unsigned> current_best_move = best_move;
 
-    Integer value = SearchYBWC(state, 1, Integer::NegInf(), Integer::Inf(), false, max_threads_);
+      for (const auto& [i, j] : moves) {
+        if (!state.PlaceMove(i, j, my_mark_)) continue;
 
-    state.UndoMove(i, j);
+        Integer value =
+            SearchYBWC(state, 1, Integer::NegInf(), Integer::Inf(), false, d, max_threads_);
 
-    if (value > best_value) {
-      best_value = value;
-      best_move = {i, j};
+        state.UndoMove(i, j);
+
+        if (value > best_value) {
+          best_value = value;
+          current_best_move = {i, j};
+        }
+      }
+      best_move = current_best_move;
+    } catch (const TimeOutException&) {
+      break;
     }
   }
+
   return best_move;
 }
 
 void YBWCAgent::OrderMoves(Caro& state, std::vector<std::pair<unsigned, unsigned>>& moves,
                            bool is_maximizing) {
   // Pair each move with its static evaluation score
+
+  CheckTime();
 
   struct OrderScoring {
     std::pair<unsigned, unsigned> move;
@@ -65,10 +86,12 @@ void YBWCAgent::OrderMoves(Caro& state, std::vector<std::pair<unsigned, unsigned
 }
 
 Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer beta,
-                              bool is_maximizing, unsigned available_threads) {
+                              bool is_maximizing, int max_depth, unsigned available_threads) {
+  CheckTime();
+
   Caro::GameState gs = state.CheckGameState();
   if (gs != Caro::GameState::kNormal) return TerminalScore(gs, depth);
-  if (depth >= max_depth_) return EvaluateBoard(state);
+  if (depth >= max_depth) return EvaluateBoard(state);
 
   auto moves = state.GetCandidateMoves(move_radius_);
   char mark = is_maximizing ? Caro::kMarkComputer : Caro::kMarkPlayer;
@@ -80,7 +103,8 @@ Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer bet
     return Integer::Zero();
   }
 
-  Integer best_score = SearchYBWC(state, depth + 1, alpha, beta, !is_maximizing, available_threads);
+  Integer best_score =
+      SearchYBWC(state, depth + 1, alpha, beta, !is_maximizing, max_depth, available_threads);
   state.UndoMove(moves[0].first, moves[0].second);
 
   if (is_maximizing) {
@@ -95,11 +119,11 @@ Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer bet
 
   // If we are out of threads, or only have 1 move left, fall back to sequential
   if (available_threads <= 1 || moves.size() == 1) {
-    return SequentialAlphaBeta(state, depth, alpha, beta, is_maximizing, moves, best_score,
-                               1);  // Starts at index 1
+    return SequentialAlphaBeta(state, depth, alpha, beta, is_maximizing, max_depth, moves,
+                               best_score, 1);  // Starts at index 1
   }
 
-  std::vector<std::future<Integer>> futures;
+  std::vector<std::future<void>> futures;
   std::mutex bounds_mutex;
 
   // Distribute remaining thread budget to the children to prevent thread explosion
@@ -109,46 +133,50 @@ Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer bet
   for (size_t i = 1; i < moves.size(); ++i) {
     // Spawn async tasks for the young brothers
     futures.push_back(std::async(std::launch::async, [&, i]() {
-      Caro child_state = state;
-      if (!child_state.PlaceMove(moves[i].first, moves[i].second, mark)) {
-        return Integer::Zero();
-      }
+      try {
+        Caro child_state = state;
+        if (!child_state.PlaceMove(moves[i].first, moves[i].second, mark)) {
+          return;
+        }
 
-      Integer local_alpha, local_beta;
-      // Safely read the current shared bounds
-      {
+        Integer local_alpha, local_beta;
+        // Safely read the current shared bounds
+        {
+          std::lock_guard<std::mutex> lock(bounds_mutex);
+          local_alpha = alpha;
+          local_beta = beta;
+        }
+
+        Integer score = SearchYBWC(child_state, depth + 1, local_alpha, local_beta, !is_maximizing,
+                                   max_depth, threads_per_child);
+
+        // Safely update the shared global bounds and best score
         std::lock_guard<std::mutex> lock(bounds_mutex);
-        local_alpha = alpha;
-        local_beta = beta;
+        if (is_maximizing) {
+          if (score > best_score) best_score = score;
+          if (best_score > alpha) alpha = best_score;
+        } else {
+          if (score < best_score) best_score = score;
+          if (best_score < beta) beta = best_score;
+        }
+
+        return;
+      } catch (const TimeOutException&) {
+        return;
       }
-
-      Integer score = SearchYBWC(child_state, depth + 1, local_alpha, local_beta, !is_maximizing,
-                                 threads_per_child);
-
-      // Safely update the shared global bounds and best score
-      std::lock_guard<std::mutex> lock(bounds_mutex);
-      if (is_maximizing) {
-        if (score > best_score) best_score = score;
-        if (best_score > alpha) alpha = best_score;
-      } else {
-        if (score < best_score) best_score = score;
-        if (best_score < beta) beta = best_score;
-      }
-
-      return score;
     }));
   }
 
   // Wait for all young brothers
   for (auto& f : futures) {
-    f.wait();
+    f.get();
   }
 
   return best_score;
 }
 
 Integer YBWCAgent::SequentialAlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
-                                       bool is_maximizing,
+                                       bool is_maximizing, int max_depth,
                                        const std::vector<std::pair<unsigned, unsigned>>& moves,
                                        Integer best_score, size_t start_idx) {
   for (size_t i = start_idx; i < moves.size(); ++i) {
@@ -156,7 +184,7 @@ Integer YBWCAgent::SequentialAlphaBeta(Caro& state, int depth, Integer alpha, In
                          is_maximizing ? Caro::kMarkComputer : Caro::kMarkPlayer)) {
       continue;
     }
-    Integer score = SearchYBWC(state, depth + 1, alpha, beta, !is_maximizing, 1);
+    Integer score = SearchYBWC(state, depth + 1, alpha, beta, !is_maximizing, max_depth, 1);
     state.UndoMove(moves[i].first, moves[i].second);
 
     if (is_maximizing) {
@@ -173,8 +201,8 @@ Integer YBWCAgent::SequentialAlphaBeta(Caro& state, int depth, Integer alpha, In
 }
 
 Integer YBWCAgent::TerminalScore(Caro::GameState state, int depth) {
-  if (state == Caro::GameState::kComputerWin) return Integer(10000 - depth);
-  if (state == Caro::GameState::kPlayerWin) return Integer(-10000 + depth);
+  if (state == Caro::GameState::kComputerWin) return Integer::Max() - Integer(depth);
+  if (state == Caro::GameState::kPlayerWin) return Integer::Min() + Integer(depth);
   if (state == Caro::GameState::kDraw) return Integer::Zero();
   return Integer::Zero();
 }
