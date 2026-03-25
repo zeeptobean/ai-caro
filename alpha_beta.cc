@@ -1,23 +1,42 @@
 #include "alpha_beta.h"
 
+AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
+    : max_depth_(depth < 1 ? 1 : depth), move_radius_(radius) {
+  time_limit_ = std::chrono::milliseconds(time_limit_ms);
+}
+
 [[nodiscard]] std::pair<unsigned, unsigned> AlphaBetaAgent::GetMove(Caro state) {
-  Integer best_value = Integer::NegInf();
+  start_time_ = std::chrono::steady_clock::now();
   std::pair<unsigned, unsigned> best_move = {0, 0};
-  bool move_found = false;
+  node_counter_ = 0;
 
   auto move_list = state.GetCandidateMoves(move_radius_);
+  if (!move_list.empty()) best_move = move_list[0];
 
-  for (const auto& [i, j] : move_list) {
-    if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
+  // Iterative deepening
+  for (unsigned d = 1; d <= 20; d++) {
+    try {
+      bool move_found = false;
+      Integer best_value = Integer::NegInf();
+      std::pair<unsigned, unsigned> current_best_move = {0, 0};
 
-    auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, max_depth_);
+      for (const auto& [i, j] : move_list) {
+        if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
 
-    state.UndoMove(i, j);  // backtrack
+        auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, max_depth_);
 
-    if (!move_found || value > best_value) {
-      best_value = value;
-      best_move = {i, j};
-      move_found = true;
+        state.UndoMove(i, j);  // backtrack
+
+        if (!move_found || value > best_value) {
+          best_value = value;
+          current_best_move = {i, j};
+          move_found = true;
+        }
+
+        best_move = current_best_move;
+      }
+    } catch (const TimeOutException&) {
+      break;
     }
   }
 
@@ -86,6 +105,8 @@ Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
 
 Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
                                   bool is_maximizing, int max_depth) {
+  CheckTime();
+
   Caro::GameState gs = state.CheckGameState();
   Integer ret = Integer::Zero();
   if (gs != Caro::GameState::kNormal) {
