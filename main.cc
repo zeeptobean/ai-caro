@@ -11,10 +11,11 @@
 int main() {
   namespace chrono = std::chrono;
 
-  Caro game(8, 8, 5);
+  Caro game(15, 15, 5);
   auto [m, n] = game.GetBoardSize();
 
-  std::unique_ptr<YBWCAgent> bot = std::make_unique<YBWCAgent>(4, 3, 4);
+  std::unique_ptr<Agent> bot = std::make_unique<YBWCAgent>(4, 2, 4);
+  // std::unique_ptr<Agent> bot = std::make_unique<AlphaBetaAgent>();
 
   std::stringstream ss;
   std::string input_str;

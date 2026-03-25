@@ -65,22 +65,23 @@ void YBWCAgent::OrderMoves(Caro& state, std::vector<std::pair<unsigned, unsigned
 }
 
 Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer beta,
-                              bool is_maximizing, int available_threads) {
+                              bool is_maximizing, unsigned available_threads) {
   Caro::GameState gs = state.CheckGameState();
   if (gs != Caro::GameState::kNormal) return TerminalScore(gs, depth);
   if (depth >= max_depth_) return EvaluateBoard(state);
 
   auto moves = state.GetCandidateMoves(move_radius_);
+  char mark = is_maximizing ? Caro::kMarkComputer : Caro::kMarkPlayer;
   if (moves.empty()) return Integer::Zero();
   OrderMoves(state, moves, is_maximizing);
 
   // Oldest brother: Search the first child sequentially to establish better bounds for pruning
-  if (!state.PlaceMove(moves[0].first, moves[0].second,
-                       is_maximizing ? Caro::kMarkComputer : Caro::kMarkPlayer)) {
+  if (!state.PlaceMove(moves[0].first, moves[0].second, mark)) {
     return Integer::Zero();
   }
 
   Integer best_score = SearchYBWC(state, depth + 1, alpha, beta, !is_maximizing, available_threads);
+  state.UndoMove(moves[0].first, moves[0].second);
 
   if (is_maximizing) {
     if (best_score > alpha) alpha = best_score;
@@ -102,14 +103,14 @@ Integer YBWCAgent::SearchYBWC(Caro& state, int depth, Integer alpha, Integer bet
   std::mutex bounds_mutex;
 
   // Distribute remaining thread budget to the children to prevent thread explosion
-  int threads_per_child = std::max(1, available_threads / static_cast<int>(moves.size() - 1));
+  unsigned threads_per_child =
+      std::max(1u, available_threads / static_cast<unsigned>(moves.size() - 1));
 
   for (size_t i = 1; i < moves.size(); ++i) {
     // Spawn async tasks for the young brothers
     futures.push_back(std::async(std::launch::async, [&, i]() {
       Caro child_state = state;
-      if (!child_state.PlaceMove(moves[i].first, moves[i].second,
-                                 is_maximizing ? Caro::kMarkComputer : Caro::kMarkPlayer)) {
+      if (!child_state.PlaceMove(moves[i].first, moves[i].second, mark)) {
         return Integer::Zero();
       }
 

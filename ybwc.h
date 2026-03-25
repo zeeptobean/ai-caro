@@ -25,7 +25,7 @@ class YBWCAgent : public Agent {
   Integer EvaluateBoard(const Caro& state) const;
 
   Integer SearchYBWC(Caro& state, int depth, Integer alpha, Integer beta, bool is_maximizing,
-                     int available_threads);
+                     unsigned available_threads);
 
   Integer SequentialAlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
                               bool is_maximizing,
