@@ -1,9 +1,12 @@
 #include "integer.h"
 
-Integer::Integer(int64_t v)
-    : value_(v < 0 ? -static_cast<uint64_t>(v) : static_cast<uint64_t>(v)), is_neg_(v < 0) {}
-
-Integer::Integer(bool inf, bool neg) : is_inf_(inf), is_neg_(neg) {}
+Integer::Integer(int64_t v) : is_neg_(v < 0) {
+  if (v < 0) {
+    value_ = static_cast<uint64_t>(-(v + 1)) + 1;
+  } else {
+    value_ = static_cast<uint64_t>(v);
+  }
+}
 
 std::string Integer::ToString() const {
   std::string sign = is_neg_ ? "-" : "";
@@ -47,8 +50,46 @@ std::string Integer::ToString() const {
   }
 }
 
-void Integer::Set(uint64_t value, bool is_neg, bool is_inf) {
-  value_ = value;
-  is_inf_ = is_inf;
-  is_neg_ = is_neg;
+[[nodiscard]] Integer Integer::operator+(const Integer& rhs) const {
+  // Handle inf: use lhs sign
+  if (is_inf_ && rhs.is_inf_) {
+    return is_neg_ ? Integer::NegInf() : Integer::Inf();
+  }
+  if (is_inf_) {
+    return is_neg_ ? Integer::NegInf() : Integer::Inf();
+  }
+  if (rhs.is_inf_) {
+    return rhs.is_neg_ ? Integer::NegInf() : Integer::Inf();
+  }
+
+  // Finite, same sign
+  if (is_neg_ == rhs.is_neg_) {
+    uint64_t out = value_ + rhs.value_;
+    // Unsigned overflow detection.
+    if (out < value_) {
+      return is_neg_ ? Integer::NegInf() : Integer::Inf();
+    }
+    return Integer(out, is_neg_);
+  }
+
+  // Finite, different signs: a + (-b) == a - b
+  if (value_ == rhs.value_) {
+    return Integer::Zero();
+  }
+  if (value_ > rhs.value_) {
+    return Integer(value_ - rhs.value_, is_neg_);
+  } else {
+    return Integer(rhs.value_ - value_, rhs.is_neg_);
+  }
+}
+
+Integer Integer::operator-(const Integer& rhs) const {
+  // a - b = a + (-b)
+  Integer neg_rhs = rhs;
+  if (!neg_rhs.is_inf_ && neg_rhs.value_ == 0) {  // reset sign of zero
+    neg_rhs.is_neg_ = false;
+  } else {
+    neg_rhs.is_neg_ = !neg_rhs.is_neg_;
+  }
+  return *this + neg_rhs;
 }
