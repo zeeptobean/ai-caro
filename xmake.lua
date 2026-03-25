@@ -58,3 +58,4 @@ target("ai-caro-dev")
         "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
         "-Wcast-qual", "-Wcast-align", "-march=native"
     )
+    add_ldflags("-fsanitize=address", "-fsanitize=undefined")
