@@ -10,7 +10,7 @@ class AlphaBetaAgent : public Agent {
   int move_radius_;
 
  public:
-  explicit AlphaBetaAgent(int depth = 4, int radius = 3, unsigned time_limit_ms = 2000);
+  explicit AlphaBetaAgent(unsigned time_limit_ms = 2000, int max_depth = 20, int radius = 3);
 
   [[nodiscard]] std::pair<unsigned, unsigned> GetMove(Caro state) override;
 

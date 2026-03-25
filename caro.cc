@@ -7,6 +7,9 @@ Caro::Caro(unsigned m, unsigned n, unsigned k) {
   if (m < k && n < k) {
     throw std::invalid_argument("Invalid board specifications");
   }
+  if (k > 18) {
+    throw std::invalid_argument("k is too large");
+  }
   board_ = std::vector<std::vector<char>>(m, std::vector<char>(n, '.'));
 
   std::mt19937_64 rng(1337);

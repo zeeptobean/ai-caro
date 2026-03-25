@@ -1,7 +1,7 @@
 #include "alpha_beta.h"
 
-AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
-    : max_depth_(depth < 1 ? 1 : depth), move_radius_(radius) {
+AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int max_depth, int radius)
+    : max_depth_(max_depth < 1 ? 1 : max_depth), move_radius_(radius) {
   time_limit_ = std::chrono::milliseconds(time_limit_ms);
 }
 
@@ -14,7 +14,7 @@ AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
   if (!move_list.empty()) best_move = move_list[0];
 
   // Iterative deepening
-  for (unsigned d = 1; d <= 20; d++) {
+  for (int d = 1; d <= max_depth_; d++) {
     try {
       bool move_found = false;
       Integer best_value = Integer::NegInf();
@@ -23,7 +23,7 @@ AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
       for (const auto& [i, j] : move_list) {
         if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
 
-        auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, max_depth_);
+        auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, d);
 
         state.UndoMove(i, j);  // backtrack
 
@@ -32,9 +32,8 @@ AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
           current_best_move = {i, j};
           move_found = true;
         }
-
-        best_move = current_best_move;
       }
+      best_move = current_best_move;
     } catch (const TimeOutException&) {
       break;
     }
@@ -44,8 +43,8 @@ AlphaBetaAgent::AlphaBetaAgent(int depth, int radius, unsigned time_limit_ms)
 }
 
 Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {
-  if (state == Caro::GameState::kComputerWin) return Integer(10000 - depth);
-  if (state == Caro::GameState::kPlayerWin) return Integer(-10000 + depth);
+  if (state == Caro::GameState::kComputerWin) return Integer::Max() - Integer(depth);
+  if (state == Caro::GameState::kPlayerWin) return Integer::Min() + Integer(depth);
   if (state == Caro::GameState::kDraw) return Integer::Zero();
   return Integer::Zero();
 }
