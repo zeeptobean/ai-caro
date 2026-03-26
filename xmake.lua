@@ -5,15 +5,18 @@ add_defines("LOCAL_FREOPEN")
 set_targetdir("bin")
 set_languages("c++20")
 
-target("ai-caro")
-    if is_mode("debug") then
-        set_symbols("debug")
-    elseif is_mode("release") then
-        set_optimize("faster")
-        set_symbols("hidden")
-        set_strip("all")
-    end
+if is_mode("debug") then
+    set_symbols("debug")
+elseif is_mode("release") then
+    set_optimize("faster")
+    set_symbols("hidden")
+    set_strip("all")
+end
 
+add_requires("imgui v1.92.3", {configs = {glfw = true, opengl3 = true}})
+add_packages("imgui")
+
+target("ai-caro")
     on_config(function (target)
         if target:toolchain("msvc") then
             target:add("cxflags", "/W4", "/permissive-")
@@ -50,11 +53,7 @@ target("ai-caro")
 
 -- Dev target: release build without static linking
 target("ai-caro-dev")
-    set_toolchains("gcc")
-    set_optimize("faster")
-    set_symbols("hidden")
-    set_strip("all")
-    add_cxxflags("-Werror", "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
+    add_cxxflags("-Wall", "-Wextra", "-pedantic", "-Wshadow", 
         "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
         "-Wcast-qual", "-Wcast-align", "-march=native"
     )

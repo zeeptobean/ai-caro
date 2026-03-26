@@ -1,5 +1,6 @@
 .vscode/*
 !.vscode/settings.json
+compile_commands.json
 .xmake/*
 bin/*
 build/*

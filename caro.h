@@ -16,6 +16,7 @@ class Caro {
 
   static const char kMarkPlayer = 'X';
   static const char kMarkComputer = 'O';
+  static const char kEmptyCell = '.';
 
   Caro(unsigned m, unsigned n, unsigned k);
 

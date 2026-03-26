@@ -25,6 +25,12 @@ xmake f --toolchain=gcc -m [release|debug]
 
 Toolchain could be `msvc` for Visual C++, `clang` or `llvm`. On Windows `msvc` or `gcc` is prefered (even with MinGW)
 
+If using VSCode, put `compile-commands.json` for IntelliSense. Also need to configure as described [here](https://code.visualstudio.com/docs/cpp/configure-intellisense#_compilecommandsjson-file)
+```
+xmake project -k compile_commands
+```
+
+
 2. Build
 ```
 xmake build ai-caro

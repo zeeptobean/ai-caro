@@ -6,6 +6,7 @@ AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int max_depth, int radius
 }
 
 [[nodiscard]] std::pair<unsigned, unsigned> AlphaBetaAgent::GetMove(Caro state) {
+  ClearCancel();
   start_time_ = std::chrono::steady_clock::now();
   std::pair<unsigned, unsigned> best_move = {0, 0};
   node_counter_ = 0;

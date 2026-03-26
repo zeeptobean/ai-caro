@@ -12,6 +12,7 @@ YBWCAgent::YBWCAgent(unsigned threads, unsigned time_soft_limit_ms, int max_dept
 }
 
 std::pair<unsigned, unsigned> YBWCAgent::GetMove(Caro state) {
+  ClearCancel();
   start_time_ = std::chrono::steady_clock::now();
   std::pair<unsigned, unsigned> best_move = {0, 0};
 
