@@ -52,9 +52,9 @@ Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {
 
 Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
   int64_t total_score = 0;
-  auto [m, n] = state.GetBoardSize();
+  auto [n, m] = state.GetBoardSize();
 
-  auto evaluate_window = [&](unsigned x, unsigned y, int dx, int dy) {
+  auto evaluate_window = [&](unsigned y, unsigned x, int dy, int dx) {
     int comp_count = 0;
     int player_count = 0;
 
@@ -69,9 +69,10 @@ Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
       unsigned nx = static_cast<unsigned>(tnx);
       unsigned ny = static_cast<unsigned>(tny);
 
-      if (state.GetCell(nx, ny) == Caro::kMarkComputer) {
+      char cell = state.GetCell(ny, nx);
+      if (cell == Caro::kMarkComputer) {
         comp_count++;
-      } else if (state.GetCell(nx, ny) == Caro::kMarkPlayer) {
+      } else if (cell == Caro::kMarkPlayer) {
         player_count++;
       }
     }
@@ -91,8 +92,8 @@ Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
     // If both > 0, the line is blocked, score is 0 (we do nothing)
   };
 
-  for (unsigned i = 0; i < m; ++i) {
-    for (unsigned j = 0; j < n; ++j) {
+  for (unsigned i = 0; i < n; ++i) {
+    for (unsigned j = 0; j < m; ++j) {
       evaluate_window(i, j, 0, 1);   // Horizontal
       evaluate_window(i, j, 1, 0);   // Vertical
       evaluate_window(i, j, 1, 1);   // Diagonal down

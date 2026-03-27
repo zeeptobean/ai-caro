@@ -105,7 +105,7 @@ void Draw() {
     for (int i = 0; i < IM_ARRAYSIZE(bot_options); i++) {
       bool is_selected = (bot_index == i);
       int flags = 0;
-      if (i == 2 || i == 3) flags |= ImGuiSelectableFlags_Disabled;
+      if (i != 0) flags |= ImGuiSelectableFlags_Disabled;
       if (ImGui::Selectable(bot_options[i], is_selected, flags)) {
         bot_index = i;
       }
@@ -131,14 +131,14 @@ void Draw() {
       if (game) delete game;
       if (bot) delete bot;
     }
-    game = new Caro(m, n, k);
+    game = new Caro(n, m, k);
     switch (bot_index) {
       case 0:
         bot = new AlphaBetaAgent(time_limit);
         break;
-      case 1:
-        bot = new YBWCAgent(k, time_limit);
-        break;
+      // case 1:
+      // bot = new YBWCAgent(k, time_limit);
+      // break;
       default:
         throw std::runtime_error("Invalid bot index. This should never happen");
         break;

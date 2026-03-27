@@ -6,8 +6,7 @@
 #include <vector>
 
 YBWCAgent::YBWCAgent(unsigned threads, unsigned time_soft_limit_ms, int max_depth, int radius)
-    : max_depth_(max_depth < 1 ? 1 : max_depth), move_radius_(radius), max_threads_(threads) {
-  time_limit_ = std::chrono::milliseconds(time_soft_limit_ms);
+    : AlphaBetaAgent(time_soft_limit_ms, max_depth, radius), max_threads_(threads) {
   timer_check_factor = 6;
 }
 
@@ -199,64 +198,4 @@ Integer YBWCAgent::SequentialAlphaBeta(Caro& state, int depth, Integer alpha, In
     }
   }
   return best_score;
-}
-
-Integer YBWCAgent::TerminalScore(Caro::GameState state, int depth) {
-  if (state == Caro::GameState::kComputerWin) return Integer::Max() - Integer(depth);
-  if (state == Caro::GameState::kPlayerWin) return Integer::Min() + Integer(depth);
-  if (state == Caro::GameState::kDraw) return Integer::Zero();
-  return Integer::Zero();
-}
-
-Integer YBWCAgent::EvaluateBoard(const Caro& state) const {
-  int64_t total_score = 0;
-  auto [m, n] = state.GetBoardSize();
-
-  auto evaluate_window = [&](unsigned x, unsigned y, int dx, int dy) {
-    int comp_count = 0;
-    int player_count = 0;
-
-    for (unsigned step = 0; step < state.GetK(); ++step) {
-      int tnx = static_cast<int>(x) + static_cast<int>(step) * dx;
-      int tny = static_cast<int>(y) + static_cast<int>(step) * dy;
-
-      if (tnx < 0 || tny < 0 || tnx >= static_cast<int>(m) || tny >= static_cast<int>(n)) {
-        return;
-      }
-
-      unsigned nx = static_cast<unsigned>(tnx);
-      unsigned ny = static_cast<unsigned>(tny);
-
-      if (state.GetCell(nx, ny) == Caro::kMarkComputer) {
-        comp_count++;
-      } else if (state.GetCell(nx, ny) == Caro::kMarkPlayer) {
-        player_count++;
-      }
-    }
-
-    // Score the window
-    if (comp_count > 0 && player_count == 0) {
-      // Only computer marks (Unblocked)
-      int64_t value = 1;
-      for (int i = 0; i < comp_count; ++i) value *= 10;
-      total_score += value;
-    } else if (player_count > 0 && comp_count == 0) {
-      // Only player marks (Unblocked)
-      int64_t value = 1;
-      for (int i = 0; i < player_count; ++i) value *= 10;
-      total_score -= value;
-    }
-    // If both > 0, the line is blocked, score is 0 (we do nothing)
-  };
-
-  for (unsigned i = 0; i < m; ++i) {
-    for (unsigned j = 0; j < n; ++j) {
-      evaluate_window(i, j, 0, 1);   // Horizontal
-      evaluate_window(i, j, 1, 0);   // Vertical
-      evaluate_window(i, j, 1, 1);   // Diagonal down
-      evaluate_window(i, j, 1, -1);  // Diagonal up
-    }
-  }
-
-  return Integer(total_score);
 }

@@ -18,18 +18,18 @@ class Caro {
   static const char kMarkComputer = 'O';
   static const char kEmptyCell = '.';
 
-  Caro(unsigned m, unsigned n, unsigned k);
+  Caro(unsigned height, unsigned width, unsigned k);
 
   void Display() const;
 
-  std::pair<unsigned, unsigned> GetBoardSize() const { return {m_, n_}; }
+  std::pair<unsigned, unsigned> GetBoardSize() const { return {n_, m_}; }
   unsigned GetK() const { return k_; }
-  char GetCell(unsigned x, unsigned y) const { return board_[x][y]; }
+  char GetCell(unsigned row, unsigned col) const { return board_[row][col]; }
   uint64_t GetHash() const { return current_hash_; }
 
-  [[nodiscard]] bool PlaceMove(unsigned x, unsigned y, char mark);
+  [[nodiscard]] bool PlaceMove(unsigned row, unsigned col, char mark);
 
-  void UndoMove(unsigned x, unsigned y);
+  void UndoMove(unsigned row, unsigned col);
 
   GameState CheckGameState() const;
 

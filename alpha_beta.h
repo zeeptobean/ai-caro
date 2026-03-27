@@ -6,6 +6,7 @@
 #include "integer.h"
 
 class AlphaBetaAgent : public Agent {
+ protected:
   int max_depth_;
   int move_radius_;
 
@@ -14,12 +15,13 @@ class AlphaBetaAgent : public Agent {
 
   [[nodiscard]] std::pair<unsigned, unsigned> GetMove(Caro state) override;
 
- private:
+ protected:
   Integer TerminalScore(Caro::GameState state, int depth);
 
   // Heuristic evaluation function for non-terminal states
   Integer EvaluateBoard(const Caro& state) const;
 
+ private:
   Integer AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta, bool is_maximizing,
                     int max_depth);
 };

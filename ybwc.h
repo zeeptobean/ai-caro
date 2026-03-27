@@ -1,13 +1,11 @@
 #ifndef AICARO_YBWC_H
 #define AICARO_YBWC_H
 
-#include "agent.h"
+#include "alpha_beta.h"
 #include "caro.h"
 #include "integer.h"
 
-class YBWCAgent : public Agent {
-  int max_depth_;
-  int move_radius_;
+class YBWCAgent : public AlphaBetaAgent {
   unsigned max_threads_;
 
  public:
@@ -20,10 +18,6 @@ class YBWCAgent : public Agent {
  private:
   void OrderMoves(Caro& state, std::vector<std::pair<unsigned, unsigned>>& moves,
                   bool is_maximizing);
-  Integer TerminalScore(Caro::GameState state, int depth);
-
-  // Heuristic evaluation function for non-terminal states
-  Integer EvaluateBoard(const Caro& state) const;
 
   Integer SearchYBWC(Caro& state, int depth, Integer alpha, Integer beta, bool is_maximizing,
                      int max_depth, unsigned available_threads);
