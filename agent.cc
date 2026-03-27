@@ -1,7 +1,30 @@
 #include "agent.h"
 
+#include <thread>
+#include <utility>
+
+std::pair<unsigned, unsigned> Agent::GetMove(Caro game_state) {
+  ClearCancel();
+  start_time_ = std::chrono::steady_clock::now();
+
+  auto moves = game_state.GetCandidateMoves(move_radius_);
+  if (!moves.empty()) return best_move_ = moves.front();
+
+  try {
+    GetMoveImpl(game_state);
+  } catch (const TimeOutException&) {
+    // catch!
+  }
+  return best_move_;
+}
+
+bool Agent::CheckTimeCondition() {
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  return true;
+}
+
 void Agent::CheckTime() {
-  if ((++node_counter_ & ((1ull << timer_check_factor) - 1)) == 0) {
+  while (CheckTimeCondition()) {
     if (cancel_signal_.load(std::memory_order_relaxed)) {
       throw TimeOutException();
     }
