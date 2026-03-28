@@ -110,7 +110,7 @@ UiApplication::~UiApplication() {
 
 void UiApplication::Draw() {
   static int time_limit = 2000, bot_index = 0;
-  static bool has_error = false, player_start = true;
+  static bool has_error = false, player_start = true, player_is_x = true;
   static std::string game_msg = "";
 
   ImGui::Begin("m,n,k", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
@@ -158,18 +158,24 @@ void UiApplication::Draw() {
   }
 
   ImGui::SetNextItemWidth(100.0f);
+  if (ImGui::InputInt("Bot move radius", &move_radius_)) {
+    if (move_radius_ < 1) move_radius_ = 1;
+  }
+
+  ImGui::SetNextItemWidth(100.0f);
   if (ImGui::InputInt("Time constraint", &time_limit)) {
     if (time_limit < 50) time_limit = 50;
   }
 
   ImGui::Checkbox("Player goes first", &player_start);
+  ImGui::Checkbox("Player is X", &player_is_x);
   ImGui::EndDisabled();
 
   ImGui::Dummy(ImVec2(0, 10));
 
   ImGui::BeginDisabled(has_error || in_game_);
   if (ImGui::Button("Game!")) {
-    StartGame(bot_index, static_cast<unsigned>(time_limit), player_start);
+    StartGame(bot_index, static_cast<unsigned>(time_limit), player_start, player_is_x);
   }
   ImGui::EndDisabled();
   ImGui::SameLine();
@@ -218,7 +224,7 @@ void UiApplication::DrawGameBoard() {
         ImGui::PushID(ti * m_ + tj);
         if (ImGui::InvisibleButton("##cell", ImVec2(32, 32)) &&
             game_->GetCell(i, j) == Caro::kEmptyCell) {
-          (void)game_->PlaceMove(i, j, Caro::kMarkPlayer);
+          (void)game_->PlaceMove(i, j, game_->GetPlayerMark());
           player_turn_ = !player_turn_;
           move_history_.emplace_back(i, j, true);
           if (game_->CheckGameState() != Caro::GameState::kNormal) {
@@ -245,13 +251,13 @@ void UiApplication::DrawGameBoard() {
         ImGui::GetWindowDrawList()->AddRect(pos_min, pos_max, IM_COL32(200, 200, 200, 100));
 
         // Draw X or O
-        if (game_->GetCell(i, j) == Caro::kMarkPlayer) {
+        if (game_->GetCell(i, j) == Caro::kMarkX) {
           ImGui::GetWindowDrawList()->AddLine(sym_min, sym_max, IM_COL32(255, 50, 50, 255),
                                               kSymbolThickness);
           ImGui::GetWindowDrawList()->AddLine(ImVec2(sym_max.x, sym_min.y),
                                               ImVec2(sym_min.x, sym_max.y),
                                               IM_COL32(255, 50, 50, 255), kSymbolThickness);
-        } else if (game_->GetCell(i, j) == Caro::kMarkComputer) {
+        } else if (game_->GetCell(i, j) == Caro::kMarkO) {
           float radius = (sym_max.x - sym_min.x) * 0.5f;
           ImVec2 center = ImVec2((sym_min.x + sym_max.x) * 0.5f, (sym_min.y + sym_max.y) * 0.5f);
           ImGui::GetWindowDrawList()->AddCircle(center, radius, IM_COL32(50, 50, 255, 255), 0,
@@ -293,7 +299,7 @@ void UiApplication::DrawGameBoard() {
 
       if (agent_task_.status.load() == AgentTask::Status::kCompleted) {
         const auto& task = agent_task_;
-        if (!game_->PlaceMove(task.move.first, task.move.second, Caro::kMarkComputer)) {
+        if (!game_->PlaceMove(task.move.first, task.move.second, game_->GetComputerMark())) {
           game_msg_ = "Invalid bot move. The game terminated";
           game_over_ = true;
         }
@@ -347,11 +353,17 @@ void UiApplication::DrawSettings() {
   }
 }
 
-void UiApplication::StartGame(int bot_index, unsigned time_limit, bool player_start) {
+void UiApplication::StartGame(int bot_index, unsigned time_limit, bool player_start,
+                              bool player_is_x) {
   game_ = std::make_shared<Caro>(n_, m_, k_);
+  if (player_is_x) {
+    game_->SetPlayerMark(Caro::kMarkX);
+  } else {
+    game_->SetPlayerMark(Caro::kMarkO);
+  }
   switch (bot_index) {
     case 0:
-      bot_ = std::make_shared<AlphaBetaAgent>(time_limit);
+      bot_ = std::make_shared<AlphaBetaAgent>(time_limit, 20, move_radius_);
       break;
     // case 1:
     // bot = new YBWCAgent(k, time_limit);

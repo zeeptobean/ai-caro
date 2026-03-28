@@ -39,6 +39,7 @@ class UiApplication {
   const float kSymbolThickness = 2.5f, kSymbolPadding = 6.0f, kLastMoveThickness = 2.0f;
 
   int n_ = 10, m_ = 10, k_ = 5;
+  int move_radius_ = 3;
   bool show_game_ = false, in_game_ = false, player_turn_ = true, game_over_ = false;
   std::vector<MoveHistory> move_history_;
   std::string game_msg_ = "";
@@ -51,7 +52,7 @@ class UiApplication {
   void DrawSettings();
   void DrawGameBoard();
 
-  void StartGame(int, unsigned, bool);
+  void StartGame(int, unsigned, bool, bool);
   void ResetGame();
   void ResetAgentTask();
 

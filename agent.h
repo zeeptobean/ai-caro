@@ -16,14 +16,11 @@ class Agent {
   virtual ~Agent() = default;
   std::pair<unsigned, unsigned> GetMove(Caro game_state);
 
-  // void SetMark(char mark) { my_mark_ = mark; }
-  char GetMark() const { return my_mark_; }
   void RequestCancel();
   void ClearCancel();
   bool CancelStatus() const;
 
  protected:
-  char my_mark_ = Caro::kMarkComputer;  // default
   int move_radius_ = 3;
   std::chrono::milliseconds time_limit_{2000};  // default 2 seconds
   std::pair<unsigned, unsigned> best_move_{0, 0};

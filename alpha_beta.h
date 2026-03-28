@@ -10,8 +10,13 @@ class AlphaBetaAgent : public Agent {
   int max_depth_;
   uint64_t node_counter_ = 0;
 
+  std::vector<TTEntry> tt_;
+
  public:
   explicit AlphaBetaAgent(unsigned time_limit_ms = 2000, int max_depth = 20, int radius = 3);
+
+  // In case of reusing bot for new game
+  void ResetBot();
 
  protected:
   void GetMoveImpl(Caro& game_state,

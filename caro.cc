@@ -10,7 +10,7 @@ Caro::Caro(unsigned height, unsigned width, unsigned k) {
   if (k > 18) {
     throw std::invalid_argument("k is too large");
   }
-  board_ = std::vector<std::vector<char>>(height, std::vector<char>(width, '.'));
+  board_ = std::vector<std::vector<char>>(height, std::vector<char>(width, kEmptyCell));
 
   std::mt19937_64 rng(1337);
   std::uniform_int_distribution<uint64_t> dist;
@@ -43,7 +43,7 @@ void Caro::Display() const {
   board_[row][col] = mark;
 
   const auto& pp = zobrist_table_.at(row).at(col);
-  current_hash_ ^= (mark == kMarkPlayer) ? pp.first : pp.second;
+  current_hash_ ^= (mark == GetPlayerMark()) ? pp.first : pp.second;
   return true;
 }
 
@@ -51,7 +51,7 @@ void Caro::UndoMove(unsigned row, unsigned col) {
   if (row < n_ && col < m_) {
     const auto& pp = zobrist_table_.at(row).at(col);
     char& mark = board_.at(row).at(col);
-    current_hash_ ^= (mark == kMarkPlayer) ? pp.first : pp.second;
+    current_hash_ ^= (mark == GetPlayerMark()) ? pp.first : pp.second;
 
     mark = '.';
   }
@@ -83,7 +83,7 @@ Caro::GameState Caro::CheckGameState() const {
       // 4 directions: horizontal, vertical, diagonal-up, diagonal-down
       if (check_direction(i, j, 0, 1, cell) || check_direction(i, j, 1, 0, cell) ||
           check_direction(i, j, 1, 1, cell) || check_direction(i, j, 1, -1, cell)) {
-        return (cell == kMarkPlayer) ? kPlayerWin : kComputerWin;
+        return (cell == GetPlayerMark()) ? kPlayerWin : kComputerWin;
       }
     }
   }

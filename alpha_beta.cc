@@ -1,13 +1,18 @@
 #include "alpha_beta.h"
 
 AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int max_depth, int radius)
-    : Agent(time_limit_ms, radius), max_depth_(max_depth < 1 ? 1 : max_depth) {}
+    : Agent(time_limit_ms, radius), max_depth_(max_depth < 1 ? 1 : max_depth) {
+  tt_.resize(1ull << 20);
+}
+
+void AlphaBetaAgent::ResetBot() { std::fill(tt_.begin(), tt_.end(), TTEntry{}); }
 
 bool AlphaBetaAgent::CheckTimeCondition() { return (++node_counter_ & ((1ull << 10) - 1)) == 0; }
 
 void AlphaBetaAgent::GetMoveImpl(Caro& state,
                                  const std::vector<std::pair<unsigned, unsigned>>& moves) {
   node_counter_ = 0;
+  std::vector<std::pair<unsigned, unsigned>> current_moves = moves;
 
   // Iterative deepening
   for (int d = 1; d <= max_depth_; d++) {
@@ -15,8 +20,19 @@ void AlphaBetaAgent::GetMoveImpl(Caro& state,
     Integer best_value = Integer::NegInf();
     std::pair<unsigned, unsigned> current_best_move = {0, 0};
 
-    for (const auto& [i, j] : moves) {
-      if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
+    // PV-Move Ordering for the root level:
+    // Place the best move from the previous iteration at the front
+    if (d > 1) {
+      for (size_t i = 0; i < current_moves.size(); ++i) {
+        if (current_moves[i] == best_move_) {
+          std::swap(current_moves[0], current_moves[i]);
+          break;
+        }
+      }
+    }
+
+    for (const auto& [i, j] : current_moves) {
+      if (!state.PlaceMove(i, j, state.GetComputerMark())) continue;
 
       auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, d);
 
@@ -30,6 +46,7 @@ void AlphaBetaAgent::GetMoveImpl(Caro& state,
     }
     best_move_ = current_best_move;
   }
+  // std::cerr << "Max depth reached!\n";
 }
 
 Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {
@@ -59,9 +76,9 @@ Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
       unsigned ny = static_cast<unsigned>(tny);
 
       char cell = state.GetCell(ny, nx);
-      if (cell == Caro::kMarkComputer) {
+      if (cell == state.GetComputerMark()) {
         comp_count++;
-      } else if (cell == Caro::kMarkPlayer) {
+      } else if (cell == state.GetPlayerMark()) {
         player_count++;
       }
     }
@@ -101,30 +118,62 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
   Integer ret = Integer::Zero();
   if (gs != Caro::GameState::kNormal) {
     ret = TerminalScore(gs, depth);
-    // std::cerr << std::format("Depth: {}, Alpha: {}, Beta: {}, IsMaximizing: {} -> {}\n", depth,
-    //                          alpha.ToString(), beta.ToString(), is_maximizing, ret.ToString());
     return ret;
   }
-  if (depth >= max_depth) {
-    ret = EvaluateBoard(state);
-    // std::cerr << std::format("Depth: {}, Alpha: {}, Beta: {}, IsMaximizing: {} -> {}\n", depth,
-    //                          alpha.ToString(), beta.ToString(), is_maximizing, ret.ToString());
-    return ret;
+  int remaining_depth = max_depth - depth;
+  if (remaining_depth <= 0) {
+    return EvaluateBoard(state);
+  }
+
+  // Transposition Table probe
+  uint64_t hash = state.GetHash();
+  TTEntry& tte = tt_[hash % tt_.size()];
+  std::pair<unsigned, unsigned> pv_move = {unsigned(-1), unsigned(-1)};
+
+  if (tte.hash == hash) {
+    pv_move = tte.best_move;
+
+    if (tte.remaining_depth >= remaining_depth) {
+      if (tte.flag == TTFlag::kExact) return tte.value;
+      if (tte.flag == TTFlag::kLowerBound) {
+        if (tte.value > alpha) alpha = tte.value;
+      } else if (tte.flag == TTFlag::kUpperBound) {
+        if (tte.value < beta) beta = tte.value;
+      }
+      if (alpha >= beta) return tte.value;
+    }
   }
 
   bool has_move = false;
   auto move_list = state.GetCandidateMoves(move_radius_);
 
+  if (pv_move.first != unsigned(-1)) {
+    for (size_t k = 0; k < move_list.size(); ++k) {
+      if (move_list[k] == pv_move) {
+        std::swap(move_list[0], move_list[k]);
+        break;
+      }
+    }
+  }
+
+  Integer original_alpha = alpha;
+  Integer original_beta = beta;
+  std::pair<unsigned, unsigned> current_best_move = {unsigned(-1), unsigned(-1)};
+  Integer best_value = is_maximizing ? Integer::NegInf() : Integer::Inf();
+
   if (is_maximizing) {
     Integer best = Integer::NegInf();
     for (const auto& [i, j] : move_list) {
-      if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
+      if (!state.PlaceMove(i, j, state.GetComputerMark())) continue;
       has_move = true;
 
       auto score = AlphaBeta(state, depth + 1, alpha, beta, false, max_depth);
       state.UndoMove(i, j);  // Backtracking
 
-      if (score > best) best = score;
+      if (score > best) {
+        best = score;
+        current_best_move = {i, j};
+      }
       if (best > alpha) alpha = best;
       if (beta <= alpha) return best;  // Prune
     }
@@ -132,21 +181,43 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
   } else {
     Integer best = Integer::Inf();
     for (const auto& [i, j] : move_list) {
-      if (!state.PlaceMove(i, j, Caro::kMarkPlayer)) continue;
+      if (!state.PlaceMove(i, j, state.GetPlayerMark())) continue;
       has_move = true;
 
       auto score = AlphaBeta(state, depth + 1, alpha, beta, true, max_depth);
       state.UndoMove(i, j);  // Backtracking
 
-      if (score < best) best = score;
+      if (score < best) {
+        best = score;
+        current_best_move = {i, j};
+      }
       if (best < beta) beta = best;
       if (beta <= alpha) return best;  // Prune
     }
 
     ret = has_move ? best : Integer::Zero();
+
+    // Update TT table
+    tte.hash = hash;
+    tte.remaining_depth = remaining_depth;
+    tte.value = ret;
+    tte.best_move = current_best_move;
+    if (is_maximizing) {
+      if (best_value <= original_alpha)
+        tte.flag = TTFlag::kUpperBound;
+      else if (best_value >= beta)
+        tte.flag = TTFlag::kLowerBound;
+      else
+        tte.flag = TTFlag::kExact;
+    } else {
+      if (best_value >= original_beta)
+        tte.flag = TTFlag::kLowerBound;
+      else if (best_value <= alpha)
+        tte.flag = TTFlag::kUpperBound;
+      else
+        tte.flag = TTFlag::kExact;
+    }
   }
 
-  // std::cerr << std::format("Depth: {}, Alpha: {}, Beta: {}, IsMaximizing: {} -> {}\n", depth,
-  //                          alpha.ToString(), beta.ToString(), is_maximizing, ret.ToString());
   return ret;
 }
