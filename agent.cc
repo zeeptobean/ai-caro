@@ -12,7 +12,7 @@ std::pair<unsigned, unsigned> Agent::GetMove(Caro game_state) {
   start_time_ = std::chrono::steady_clock::now();
 
   auto moves = game_state.GetCandidateMoves(move_radius_);
-  if (!moves.empty()) return best_move_ = moves.front();
+  if (!moves.empty()) best_move_ = moves.front();
 
   try {
     GetMoveImpl(game_state, moves);
