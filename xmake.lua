@@ -39,6 +39,7 @@ target("ai-caro")
         
         elseif target:toolchain("gcc") or target:toolchain("clang") then    
             target:add("cxflags", 
+                "-Werror",
                 "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
                 "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
                 "-Wcast-qual", "-Wcast-align", "-march=nehalem"

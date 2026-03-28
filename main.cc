@@ -8,9 +8,9 @@
 #include "alpha_beta.h"
 #include "caro.h"
 #include "gui.h"
-#include "ybwc.h"
 
 int main(int argc, char** argv) {
+  UNREFERENCED_PARAMETER(argc);
   try {
     UiApplication app(argv[0]);
     app.Run();

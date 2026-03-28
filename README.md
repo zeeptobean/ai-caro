@@ -6,7 +6,6 @@ See [main.cc](main.cc) for n, m, k game modification
 
 ### Bots
 - [x] Alpha-beta pruning
-- [x] Alpha-beta pruning with YBWC
 - [ ] MCTS
 - [ ] Ant search tree 
 

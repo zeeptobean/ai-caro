@@ -33,8 +33,7 @@ class Agent {
   void CheckTime();
 
   // Default implementation, should be overridden
-  virtual void GetMoveImpl(Caro& game_state,
-                           const std::vector<std::pair<unsigned, unsigned>>& moves) {}
+  virtual void GetMoveImpl(Caro&, const std::vector<std::pair<unsigned, unsigned>>&) {}
 
   // Default check time condition, default to wait 50ms
   // Can be overridden for finer control

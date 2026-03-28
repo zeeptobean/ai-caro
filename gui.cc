@@ -169,7 +169,7 @@ void UiApplication::Draw() {
 
   ImGui::BeginDisabled(has_error || in_game_);
   if (ImGui::Button("Game!")) {
-    StartGame(bot_index, time_limit, player_start);
+    StartGame(bot_index, static_cast<unsigned>(time_limit), player_start);
   }
   ImGui::EndDisabled();
   ImGui::SameLine();
@@ -179,7 +179,7 @@ void UiApplication::Draw() {
   }
   ImGui::EndDisabled();
 
-  ImGui::Text(game_msg_.c_str());
+  ImGui::Text("%s", game_msg_.c_str());
   DrawGameBoard();
 
   ImGui::End();
@@ -207,12 +207,14 @@ void UiApplication::DrawGameBoard() {
 
     ImGui::BeginDisabled(!player_turn_ || !in_game_ || game_over_);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-    for (int i = 0; i < n_; i++) {
-      for (int j = 0; j < m_; j++) {
-        ImGui::PushID(i * m_ + j);
+    for (int ti = 0; ti < n_; ti++) {
+      for (int tj = 0; tj < m_; tj++) {
+        unsigned i = static_cast<unsigned>(ti);
+        unsigned j = static_cast<unsigned>(tj);
+        ImGui::PushID(ti * m_ + tj);
         if (ImGui::InvisibleButton("##cell", ImVec2(32, 32)) &&
             game_->GetCell(i, j) == Caro::kEmptyCell) {
-          game_->PlaceMove(i, j, Caro::kMarkPlayer);
+          (void)game_->PlaceMove(i, j, Caro::kMarkPlayer);
           player_turn_ = !player_turn_;
           move_history_.emplace_back(i, j, true);
           if (game_->CheckGameState() != Caro::GameState::kNormal) {
@@ -231,7 +233,7 @@ void UiApplication::DrawGameBoard() {
         if (ImGui::IsItemHovered() && game_->GetCell(i, j) == Caro::kEmptyCell) {
           ImGui::GetWindowDrawList()->AddRectFilled(pos_min, pos_max, IM_COL32(0, 255, 255, 40));
           ImGui::BeginTooltip();
-          ImGui::Text("(row: %d, col: %d)", i + 1, j + 1);
+          ImGui::Text("(row: %u, col: %u)", i + 1, j + 1);
           ImGui::EndTooltip();
         }
 
@@ -258,7 +260,7 @@ void UiApplication::DrawGameBoard() {
                                               kLastMoveThickness);
         }
 
-        if (j < m_ - 1) ImGui::SameLine();
+        if (tj < m_ - 1) ImGui::SameLine();
         ImGui::PopID();
       }
     }

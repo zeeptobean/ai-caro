@@ -35,7 +35,7 @@ class UiApplication {
   GLFWwindow* window_ = nullptr;
   bool dark_theme_ = true;
   float font_size_ = 11.0f;
-  const char* kBotOptions[4] = {"AB", "YBWC", "ANTS", "MCTS"};
+  const char* kBotOptions[3] = {"AB", "ANTS", "MCTS"};
   const float kSymbolThickness = 2.5f, kSymbolPadding = 6.0f, kLastMoveThickness = 2.0f;
 
   int n_ = 10, m_ = 10, k_ = 5;
