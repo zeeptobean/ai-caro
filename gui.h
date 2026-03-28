@@ -51,6 +51,9 @@ class UiApplication {
   void DrawSettings();
   void DrawGameBoard();
 
+  static void GlfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
+  void RenderFrame();
+
   void StartGame(int, unsigned, bool);
   void ResetGame();
   void ResetAgentTask();

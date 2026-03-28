@@ -13,9 +13,21 @@ static void glfw_error_callback(int error, const char* description) {
   std::cerr << std::format("GLFW Error {}: {}\n", error, description);
 }
 
+void UiApplication::GlfwFramebufferSizeCallback(GLFWwindow* window, int width, int height) {
+  if (width == 0 || height == 0) return;
+
+  UiApplication* app = static_cast<UiApplication*>(glfwGetWindowUserPointer(window));
+  if (app) {
+    app->RenderFrame();
+  }
+}
+
 static std::string headless_hint(const char* program_name) {
-  std::string str = "It looks like you are running this program in a headless environment\n";
-  str += std::format("Run \"{} cli\" to use the command-line interface.\n", program_name);
+  // std::string str = "It looks like you are running this program in a headless environment\n";
+  // str += std::format("Run \"{} cli\" to use the command-line interface.\n", program_name);
+  UNREFERENCED_PARAMETER(program_name);
+  std::string str =
+      "Failed to initialize GLFW. This program requires a graphical environment to run.\n";
   return str;
 }
 
@@ -45,6 +57,9 @@ UiApplication::UiApplication(const char* program_name) {
     throw std::runtime_error(headless_hint(program_name));
   }
 
+  glfwSetWindowUserPointer(window_, this);
+  glfwSetFramebufferSizeCallback(window_, GlfwFramebufferSizeCallback);
+
   glfwMakeContextCurrent(window_);
   glfwSwapInterval(1);  // Enable vsync
 
@@ -72,28 +87,32 @@ void UiApplication::Run() {
       continue;
     }
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    // Set internal window size to match the viewport size
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-
-    Draw();
-
-    ImGui::Render();
-    int display_w, display_h;
-    glfwGetFramebufferSize(window_, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    glfwSwapBuffers(window_);
+    RenderFrame();
   }
+}
+
+void UiApplication::RenderFrame() {
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+
+  // Set internal window size to match the viewport size
+  ImGuiViewport* viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->WorkPos);
+  ImGui::SetNextWindowSize(viewport->WorkSize);
+
+  Draw();
+
+  ImGui::Render();
+  int display_w, display_h;
+  glfwGetFramebufferSize(window_, &display_w, &display_h);
+  glViewport(0, 0, display_w, display_h);
+  glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+  glfwSwapBuffers(window_);
 }
 
 UiApplication::~UiApplication() {
