@@ -57,57 +57,80 @@ Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {
 }
 
 Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
-  int64_t total_score = 0;
+  Integer total_score = Integer::Zero();
   auto [n, m] = state.GetBoardSize();
+  unsigned K = state.GetK();
 
-  auto evaluate_window = [&](unsigned y, unsigned x, int dy, int dx) {
-    int comp_count = 0;
-    int player_count = 0;
+  // Treating out-of-bounds as 'blocked' (#)
+  auto get_cell = [&](int y, int x) -> char {
+    if (x < 0 || y < 0 || x >= static_cast<int>(m) || y >= static_cast<int>(n)) {
+      return '#';
+    }
+    return state.GetCell(static_cast<unsigned>(y), static_cast<unsigned>(x));
+  };
 
-    for (unsigned step = 0; step < state.GetK(); ++step) {
-      int tnx = static_cast<int>(x) + static_cast<int>(step) * dx;
-      int tny = static_cast<int>(y) + static_cast<int>(step) * dy;
+  auto evaluate_direction = [&](int y, int x, int dy, int dx) {
+    char color = get_cell(y, x);
+    if (color == '.' || color == '#') return;
 
-      if (tnx < 0 || tny < 0 || tnx >= static_cast<int>(m) || tny >= static_cast<int>(n)) {
-        return;
+    if (get_cell(y - dy, x - dx) == color) return;
+
+    // Count the contiguous sequence
+    unsigned length = 1;
+    int ty = y + dy, tx = x + dx;
+    while (get_cell(ty, tx) == color) {
+      length++;
+      ty += dy;
+      tx += dx;
+    }
+
+    // Check the ends
+    char before = get_cell(y - dy, x - dx);
+    char after = get_cell(ty, tx);
+
+    int open_ends = 0;
+    if (before == '.') open_ends++;
+    if (after == '.') open_ends++;
+
+    // If completely blocked and not a winning line, it's dead.
+    if (open_ends == 0 && length < K) return;
+
+    uint64_t raw_score = 1;
+
+    if (length >= K) {
+      raw_score = (~0ull) - 5;
+    } else {
+      // Base score is 10^length.
+      for (unsigned i = 0; i < length; ++i) {
+        raw_score *= 10;
       }
 
-      unsigned nx = static_cast<unsigned>(tnx);
-      unsigned ny = static_cast<unsigned>(tny);
-
-      char cell = state.GetCell(ny, nx);
-      if (cell == state.GetComputerMark()) {
-        comp_count++;
-      } else if (cell == state.GetPlayerMark()) {
-        player_count++;
+      if (open_ends == 2) {
+        raw_score *= 5;
       }
     }
 
-    // Score the window
-    if (comp_count > 0 && player_count == 0) {
-      // Only computer marks (Unblocked)
-      int64_t value = 1;
-      for (int i = 0; i < comp_count; ++i) value *= 10;
-      total_score += value;
-    } else if (player_count > 0 && comp_count == 0) {
-      // Only player marks (Unblocked)
-      int64_t value = 1;
-      for (int i = 0; i < player_count; ++i) value *= 10;
-      total_score -= value;
+    if (color == state.GetComputerMark()) {
+      total_score = total_score + Integer(raw_score, false);
+    } else {
+      // Defensive preference: multiply opponent score by 1.1x using integer math
+      uint64_t def_score = raw_score + (raw_score / 10);
+      total_score = total_score - Integer(def_score, false);
     }
-    // If both > 0, the line is blocked, score is 0 (we do nothing)
   };
 
   for (unsigned i = 0; i < n; ++i) {
     for (unsigned j = 0; j < m; ++j) {
-      evaluate_window(i, j, 0, 1);   // Horizontal
-      evaluate_window(i, j, 1, 0);   // Vertical
-      evaluate_window(i, j, 1, 1);   // Diagonal down
-      evaluate_window(i, j, 1, -1);  // Diagonal up
+      int ii = static_cast<int>(i);
+      int jj = static_cast<int>(j);
+      evaluate_direction(ii, jj, 0, 1);   // Horizontal
+      evaluate_direction(ii, jj, 1, 0);   // Vertical
+      evaluate_direction(ii, jj, 1, 1);   // Diagonal down right
+      evaluate_direction(ii, jj, 1, -1);  // Diagonal up right
     }
   }
 
-  return Integer(total_score);
+  return total_score;
 }
 
 Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
@@ -159,7 +182,6 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
   Integer original_alpha = alpha;
   Integer original_beta = beta;
   std::pair<unsigned, unsigned> current_best_move = {unsigned(-1), unsigned(-1)};
-  Integer best_value = is_maximizing ? Integer::NegInf() : Integer::Inf();
 
   if (is_maximizing) {
     Integer best = Integer::NegInf();
@@ -175,7 +197,7 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
         current_best_move = {i, j};
       }
       if (best > alpha) alpha = best;
-      if (beta <= alpha) return best;  // Prune
+      if (beta <= alpha) break;  // Prune
     }
     ret = has_move ? best : Integer::Zero();
   } else {
@@ -192,7 +214,7 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
         current_best_move = {i, j};
       }
       if (best < beta) beta = best;
-      if (beta <= alpha) return best;  // Prune
+      if (beta <= alpha) break;  // Prune
     }
 
     ret = has_move ? best : Integer::Zero();
@@ -202,20 +224,12 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
     tte.remaining_depth = remaining_depth;
     tte.value = ret;
     tte.best_move = current_best_move;
-    if (is_maximizing) {
-      if (best_value <= original_alpha)
-        tte.flag = TTFlag::kUpperBound;
-      else if (best_value >= beta)
-        tte.flag = TTFlag::kLowerBound;
-      else
-        tte.flag = TTFlag::kExact;
+    if (ret <= original_alpha) {
+      tte.flag = TTFlag::kUpperBound;
+    } else if (ret >= original_beta) {
+      tte.flag = TTFlag::kLowerBound;
     } else {
-      if (best_value >= original_beta)
-        tte.flag = TTFlag::kLowerBound;
-      else if (best_value <= alpha)
-        tte.flag = TTFlag::kUpperBound;
-      else
-        tte.flag = TTFlag::kExact;
+      tte.flag = TTFlag::kExact;
     }
   }
 
