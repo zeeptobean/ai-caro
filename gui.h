@@ -1,6 +1,14 @@
 #ifndef AI_CARO_GUI_H
 #define AI_CARO_GUI_H
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>

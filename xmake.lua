@@ -13,6 +13,15 @@ elseif is_mode("release") then
     set_strip("all")
 end
 
+-- Force MT & MDd for libraries on Windows
+if is_plat("windows") then
+    if is_mode("release") then
+        set_runtimes("MT")
+    else
+        set_runtimes("MDd")
+    end
+end
+
 add_requires("imgui v1.92.3", {configs = {glfw = true, opengl3 = true}})
 add_packages("imgui")
 
@@ -28,21 +37,20 @@ target("ai-caro")
                 target:set("runtimes", "MDd")
             end
         
-        -- target clang on windows this will be treated as windows-msvc target, prefer llvm instead
-        elseif target:toolchain("gcc") or target:toolchain("clang") or target:toolchain("llvm") then    
+        elseif target:toolchain("gcc") or target:toolchain("clang") then    
             target:add("cxflags", 
-                "-Werror", "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
+                "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
                 "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
                 "-Wcast-qual", "-Wcast-align", "-march=nehalem"
             )
 
             if is_mode("release") then
                 target:add("ldflags", "-static-libstdc++", "-static-libgcc")
-                if target:toolchain("gcc") then
+                if target:toolchain("gcc", "clang") and target:is_plat("linux", "mingw") then
                     target:add("ldflags", "-flto")
                 end
     
-                if is_plat("windows") then
+                if is_plat("mingw") then
                     target:add("ldflags", "-static")
                 end
             end
@@ -50,11 +58,3 @@ target("ai-caro")
             raise("Unsupported toolchain: " .. (target:get("toolchain") or "unknown"))
         end
     end)
-
--- Dev target: release build without static linking
-target("ai-caro-dev")
-    add_cxxflags("-Wall", "-Wextra", "-pedantic", "-Wshadow", 
-        "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
-        "-Wcast-qual", "-Wcast-align", "-march=native"
-    )
-    add_ldflags("-fsanitize=address", "-fsanitize=undefined")
