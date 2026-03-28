@@ -188,20 +188,24 @@ void UiApplication::Draw() {
 void UiApplication::DrawGameBoard() {
   if (show_game_) {
     ImGui::SeparatorText("Game Board");
-    // ImGui::BeginDisabled(!player_turn_ || !in_game_ || move_history_.empty());
-    // if (ImGui::Button("Undo")) {  //Only able to undo on player's turn
-    //   const auto& last_move = move_history_.back();
-    //   game_->RemoveMove(last_move.i, last_move.j);
-    //   if (!last_move.is_player) {
-    //     player_turn_ = !player_turn_;
-    //   }
-    //   move_history_.pop_back();
-    //   if (game_->CheckGameState() == Caro::GameState::kNormal) {
-    //     in_game_ = true;
-    //     game_msg_ = player_turn_ ? "Your turn" : "Computer's turn";
-    //   }
-    // }
-    // ImGui::EndDisabled();
+    ImGui::BeginDisabled(!in_game_ || !player_turn_ || move_history_.size() < 2);
+    if (ImGui::Button("Undo")) {  // Only able to undo on player's turn
+      // Undo player's move
+      const auto& player_move = move_history_.back();
+      game_->UndoMove(player_move.i, player_move.j);
+      move_history_.pop_back();
+
+      // Undo computer's move
+      const auto& computer_move = move_history_.back();
+      game_->UndoMove(computer_move.i, computer_move.j);
+      move_history_.pop_back();
+
+      if (game_->CheckGameState() == Caro::GameState::kNormal) {
+        in_game_ = true;
+        game_msg_ = "Your turn";
+      }
+    }
+    ImGui::EndDisabled();
 
     ImGui::BeginChild("Container A", ImVec2(-1, -1), true, ImGuiWindowFlags_HorizontalScrollbar);
 
