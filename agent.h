@@ -24,14 +24,17 @@ class Agent {
 
  protected:
   char my_mark_ = Caro::kMarkComputer;  // default
-  unsigned move_radius_ = 3;
+  int move_radius_ = 3;
   std::chrono::milliseconds time_limit_{2000};  // default 2 seconds
   std::pair<unsigned, unsigned> best_move_{0, 0};
+
+  Agent(unsigned time_limit, int move_radius);
 
   void CheckTime();
 
   // Default implementation, should be overridden
-  virtual void GetMoveImpl(Caro& game_state) {}
+  virtual void GetMoveImpl(Caro& game_state,
+                           const std::vector<std::pair<unsigned, unsigned>>& moves) {}
 
   // Default check time condition, default to wait 50ms
   // Can be overridden for finer control

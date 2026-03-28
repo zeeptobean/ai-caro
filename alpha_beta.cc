@@ -1,46 +1,35 @@
 #include "alpha_beta.h"
 
 AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int max_depth, int radius)
-    : max_depth_(max_depth < 1 ? 1 : max_depth), move_radius_(radius) {
-  time_limit_ = std::chrono::milliseconds(time_limit_ms);
-}
+    : Agent(time_limit_ms, radius), max_depth_(max_depth < 1 ? 1 : max_depth) {}
 
-[[nodiscard]] std::pair<unsigned, unsigned> AlphaBetaAgent::GetMove(Caro state) {
-  ClearCancel();
-  start_time_ = std::chrono::steady_clock::now();
-  std::pair<unsigned, unsigned> best_move = {0, 0};
+bool AlphaBetaAgent::CheckTimeCondition() { return (++node_counter_ & ((1ull << 10) - 1)) == 0; }
+
+void AlphaBetaAgent::GetMoveImpl(Caro& state,
+                                 const std::vector<std::pair<unsigned, unsigned>>& moves) {
   node_counter_ = 0;
-
-  auto move_list = state.GetCandidateMoves(move_radius_);
-  if (!move_list.empty()) best_move = move_list[0];
 
   // Iterative deepening
   for (int d = 1; d <= max_depth_; d++) {
-    try {
-      bool move_found = false;
-      Integer best_value = Integer::NegInf();
-      std::pair<unsigned, unsigned> current_best_move = {0, 0};
+    bool move_found = false;
+    Integer best_value = Integer::NegInf();
+    std::pair<unsigned, unsigned> current_best_move = {0, 0};
 
-      for (const auto& [i, j] : move_list) {
-        if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
+    for (const auto& [i, j] : moves) {
+      if (!state.PlaceMove(i, j, Caro::kMarkComputer)) continue;
 
-        auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, d);
+      auto value = AlphaBeta(state, 1, Integer::NegInf(), Integer::Inf(), false, d);
 
-        state.UndoMove(i, j);  // backtrack
+      state.UndoMove(i, j);  // backtrack
 
-        if (!move_found || value > best_value) {
-          best_value = value;
-          current_best_move = {i, j};
-          move_found = true;
-        }
+      if (!move_found || value > best_value) {
+        best_value = value;
+        current_best_move = {i, j};
+        move_found = true;
       }
-      best_move = current_best_move;
-    } catch (const TimeOutException&) {
-      break;
     }
+    best_move_ = current_best_move;
   }
-
-  return best_move;
 }
 
 Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {

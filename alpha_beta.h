@@ -8,14 +8,16 @@
 class AlphaBetaAgent : public Agent {
  protected:
   int max_depth_;
-  int move_radius_;
+  uint64_t node_counter_ = 0;
 
  public:
   explicit AlphaBetaAgent(unsigned time_limit_ms = 2000, int max_depth = 20, int radius = 3);
 
-  [[nodiscard]] std::pair<unsigned, unsigned> GetMove(Caro state) override;
-
  protected:
+  void GetMoveImpl(Caro& game_state,
+                   const std::vector<std::pair<unsigned, unsigned>>& moves) override;
+  bool CheckTimeCondition() override;
+
   Integer TerminalScore(Caro::GameState state, int depth);
 
   // Heuristic evaluation function for non-terminal states

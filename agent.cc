@@ -3,6 +3,10 @@
 #include <thread>
 #include <utility>
 
+Agent::Agent(unsigned time_limit, int move_radius) : move_radius_(move_radius) {
+  time_limit_ = std::chrono::milliseconds(time_limit);
+}
+
 std::pair<unsigned, unsigned> Agent::GetMove(Caro game_state) {
   ClearCancel();
   start_time_ = std::chrono::steady_clock::now();
@@ -11,7 +15,7 @@ std::pair<unsigned, unsigned> Agent::GetMove(Caro game_state) {
   if (!moves.empty()) return best_move_ = moves.front();
 
   try {
-    GetMoveImpl(game_state);
+    GetMoveImpl(game_state, moves);
   } catch (const TimeOutException&) {
     // catch!
   }
