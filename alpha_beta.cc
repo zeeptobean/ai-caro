@@ -1,7 +1,6 @@
 #include "alpha_beta.h"
 
-AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int max_depth, int radius)
-    : Agent(time_limit_ms, radius), max_depth_(max_depth < 1 ? 1 : max_depth) {
+AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int radius) : Agent(time_limit_ms, radius) {
   tt_.resize(1ull << 20);
 }
 
@@ -15,7 +14,7 @@ void AlphaBetaAgent::GetMoveImpl(Caro& state,
   std::vector<std::pair<unsigned, unsigned>> current_moves = moves;
 
   // Iterative deepening
-  for (int d = 1; d <= max_depth_; d++) {
+  for (int d = 1; d <= std::numeric_limits<int>::max(); d++) {
     bool move_found = false;
     Integer best_value = Integer::NegInf();
     std::pair<unsigned, unsigned> current_best_move = {0, 0};

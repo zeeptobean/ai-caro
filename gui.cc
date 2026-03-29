@@ -363,7 +363,7 @@ void UiApplication::StartGame(int bot_index, unsigned time_limit, bool player_st
   }
   switch (bot_index) {
     case 0:
-      bot_ = std::make_shared<AlphaBetaAgent>(time_limit, 20, move_radius_);
+      bot_ = std::make_shared<AlphaBetaAgent>(time_limit, move_radius_);
       break;
     // case 1:
     // bot = new YBWCAgent(k, time_limit);
