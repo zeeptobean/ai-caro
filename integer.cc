@@ -93,3 +93,13 @@ Integer Integer::operator-(const Integer& rhs) const {
   }
   return *this + neg_rhs;
 }
+
+Integer& Integer::operator+=(const Integer& rhs) {
+  *this = *this + rhs;
+  return *this;
+}
+
+Integer& Integer::operator-=(const Integer& rhs) {
+  *this = *this - rhs;
+  return *this;
+}

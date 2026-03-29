@@ -1,5 +1,7 @@
 #include "alpha_beta.h"
 
+#include "util.h"
+
 AlphaBetaAgent::AlphaBetaAgent(unsigned time_limit_ms, int radius) : Agent(time_limit_ms, radius) {
   tt_.resize(1ull << 20);
 }
@@ -56,80 +58,149 @@ Integer AlphaBetaAgent::TerminalScore(Caro::GameState state, int depth) {
 }
 
 Integer AlphaBetaAgent::EvaluateBoard(const Caro& state) const {
-  Integer total_score = Integer::Zero();
-  auto [n, m] = state.GetBoardSize();
-  unsigned K = state.GetK();
-
-  // Treating out-of-bounds as 'blocked' (#)
-  auto get_cell = [&](int y, int x) -> char {
-    if (x < 0 || y < 0 || x >= static_cast<int>(m) || y >= static_cast<int>(n)) {
-      return '#';
-    }
-    return state.GetCell(static_cast<unsigned>(y), static_cast<unsigned>(x));
-  };
-
-  auto evaluate_direction = [&](int y, int x, int dy, int dx) {
-    char color = get_cell(y, x);
-    if (color == '.' || color == '#') return;
-
-    if (get_cell(y - dy, x - dx) == color) return;
-
-    // Count the contiguous sequence
-    unsigned length = 1;
-    int ty = y + dy, tx = x + dx;
-    while (get_cell(ty, tx) == color) {
-      length++;
-      ty += dy;
-      tx += dx;
-    }
-
-    // Check the ends
-    char before = get_cell(y - dy, x - dx);
-    char after = get_cell(ty, tx);
-
-    int open_ends = 0;
-    if (before == '.') open_ends++;
-    if (after == '.') open_ends++;
-
-    // If completely blocked and not a winning line, it's dead.
-    if (open_ends == 0 && length < K) return;
-
-    uint64_t raw_score = 1;
-
-    if (length >= K) {
-      raw_score = (~0ull) - 5;
-    } else {
-      // Base score is 10^length.
-      for (unsigned i = 0; i < length; ++i) {
-        raw_score *= 10;
+  auto [rows, cols] = state.GetBoardSize();
+  unsigned k = state.GetK();
+  bool is_player_next_turn = (state.GetPlayerMovesCount() == state.GetComputerMovesCount());
+  bool is_comp_turn = !is_player_next_turn;
+  /*
+    auto get_shape_score = [k](unsigned consecutive, unsigned blocks, bool buff) -> Integer {
+      if (blocks == 2 && consecutive < k) {
+        return Integer::Zero();
       }
 
-      if (open_ends == 2) {
-        raw_score *= 5;
+      unsigned urgency = 0;
+      if (consecutive >= k) {
+        urgency = 6;
+      } else if (consecutive == k - 1) {
+        urgency = 4;
+      } else if (consecutive == k - 2) {
+        urgency = 2;
+      } else if (consecutive == k - 3) {
+        urgency = 1;
+      } else {
+        return Integer::Zero();
+      }
+
+      if (consecutive < k) {
+        urgency += (blocks == 0);  // +1 tier if unblocked
+        urgency += buff;           // +1 tier to whom side get to play the next stone
+      }
+
+      switch (urgency) {
+        case 0:
+          return Integer::Zero();
+        case 1:
+          return Integer(10);
+        case 2:
+          return Integer(100);
+        case 3:
+          return Integer(1000);  // e.g., Open (k-2)
+        case 4:
+          return Integer(10000);  // e.g., Closed (k-1)
+        case 5:
+          return Integer(100000);  // e.g., Open (k-1)
+        default:
+          return Integer(10000000);  // Actual Win (urgency 6+)
+      }
+    };
+  */
+
+  auto evaluate_line = [&](int r, int c, int dr, int dc, char target_mark, char opp_mark,
+                           bool is_my_turn) -> Integer {
+    Integer score = Integer::Zero();
+    std::vector<char> line;
+
+    while (r >= 0 && r < static_cast<int>(rows) && c >= 0 && c < static_cast<int>(cols)) {
+      line.push_back(state.GetCell(static_cast<unsigned>(r), static_cast<unsigned>(c)));
+      r += dr;
+      c += dc;
+    }
+
+    if (line.size() < k) return Integer::Zero();
+
+    // Sliding window
+    for (size_t i = 0; i <= line.size() - k; ++i) {
+      unsigned target_count = 0;
+      unsigned opp_count = 0;
+
+      for (size_t j = 0; j < k; ++j) {
+        if (line[i + j] == target_mark)
+          target_count++;
+        else if (line[i + j] == opp_mark)
+          opp_count++;
+      }
+
+      if (target_count > 0 && opp_count == 0) {
+        unsigned missing = k - target_count;
+
+        if (is_my_turn) {
+          if (missing == 0)
+            score += Integer(10000000);  // k stones
+          else if (missing == 1)
+            score += Integer(500000);  // k-1 stones (Unstoppable win)
+          else if (missing == 2)
+            score += Integer(10000);  // k-2 stones (Will become k-1)
+          else if (missing == 3)
+            score += Integer(500);  // k-3 stones
+          else
+            score += Integer(50);  // k-4 or smaller
+        } else {
+          if (missing == 0)
+            score += Integer(10000000);  // k stones
+          else if (missing == 1)
+            score += Integer(100000);  // k-1 stones (Forces a block)
+          else if (missing == 2)
+            score += Integer(1000);  // k-2 stones (Standard threat)
+          else if (missing == 3)
+            score += Integer(100);  // k-3 stones
+          else
+            score += Integer(10);  // k-4 or smaller
+        }
       }
     }
-
-    if (color == state.GetComputerMark()) {
-      total_score = total_score + Integer(raw_score, false);
-    } else {
-      // Defensive preference: multiply opponent score by 1.1x using integer math
-      uint64_t def_score = raw_score + (raw_score / 10);
-      total_score = total_score - Integer(def_score, false);
-    }
+    return score;
   };
 
-  for (unsigned i = 0; i < n; ++i) {
-    for (unsigned j = 0; j < m; ++j) {
-      int ii = static_cast<int>(i);
-      int jj = static_cast<int>(j);
-      evaluate_direction(ii, jj, 0, 1);   // Horizontal
-      evaluate_direction(ii, jj, 1, 0);   // Vertical
-      evaluate_direction(ii, jj, 1, 1);   // Diagonal down right
-      evaluate_direction(ii, jj, 1, -1);  // Diagonal up right
-    }
-  }
+  auto evaluate_all_lines_for_mark = [&](char mark, char opp_mark, bool is_my_turn) -> Integer {
+    Integer total_score = Integer::Zero();
+    // bool buff = (mark == state.GetComputerMark()) ? !is_player_next_turn : is_player_next_turn;
 
-  return total_score;
+    // 1. Evaluate Rows (Horizontal: dr=0, dc=1)
+    for (int r = 0; r < static_cast<int>(rows); ++r) {
+      total_score += evaluate_line(r, 0, 0, 1, mark, opp_mark, is_my_turn);
+    }
+
+    // 2. Evaluate Columns (Vertical: dr=1, dc=0)
+    for (int c = 0; c < static_cast<int>(cols); ++c) {
+      total_score += evaluate_line(0, c, 1, 0, mark, opp_mark, is_my_turn);
+    }
+
+    // 3. Evaluate Diagonals (Down-Right: dr=1, dc=1)
+    for (int c = 0; c < static_cast<int>(cols); ++c) {
+      total_score += evaluate_line(0, c, 1, 1, mark, opp_mark, is_my_turn);
+    }
+    for (int r = 1; r < static_cast<int>(rows); ++r) {
+      total_score += evaluate_line(r, 0, 1, 1, mark, opp_mark, is_my_turn);
+    }
+
+    // 4. Evaluate Diagonals (Down-Left: dr=1, dc=-1)
+    for (int c = 0; c < static_cast<int>(cols); ++c) {
+      total_score += evaluate_line(0, c, 1, -1, mark, opp_mark, is_my_turn);
+    }
+    for (int r = 1; r < static_cast<int>(rows); ++r) {
+      total_score +=
+          evaluate_line(r, static_cast<int>(cols) - 1, 1, -1, mark, opp_mark, is_my_turn);
+    }
+
+    return total_score;
+  };
+
+  Integer bot_score =
+      evaluate_all_lines_for_mark(state.GetComputerMark(), state.GetPlayerMark(), is_comp_turn);
+  Integer player_score = evaluate_all_lines_for_mark(state.GetPlayerMark(), state.GetComputerMark(),
+                                                     is_player_next_turn);
+
+  return bot_score - player_score;
 }
 
 Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
@@ -217,19 +288,19 @@ Integer AlphaBetaAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer
     }
 
     ret = has_move ? best : Integer::Zero();
+  }
 
-    // Update TT table
-    tte.hash = hash;
-    tte.remaining_depth = remaining_depth;
-    tte.value = ret;
-    tte.best_move = current_best_move;
-    if (ret <= original_alpha) {
-      tte.flag = TTFlag::kUpperBound;
-    } else if (ret >= original_beta) {
-      tte.flag = TTFlag::kLowerBound;
-    } else {
-      tte.flag = TTFlag::kExact;
-    }
+  // Update TT table
+  tte.hash = hash;
+  tte.remaining_depth = remaining_depth;
+  tte.value = ret;
+  tte.best_move = current_best_move;
+  if (ret <= original_alpha) {
+    tte.flag = TTFlag::kUpperBound;
+  } else if (ret >= original_beta) {
+    tte.flag = TTFlag::kLowerBound;
+  } else {
+    tte.flag = TTFlag::kExact;
   }
 
   return ret;

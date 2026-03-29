@@ -31,6 +31,9 @@ class Integer {
   [[nodiscard]] Integer operator+(const Integer& rhs) const;
   [[nodiscard]] Integer operator-(const Integer& rhs) const;
 
+  Integer& operator+=(const Integer& rhs);
+  Integer& operator-=(const Integer& rhs);
+
  private:
   uint64_t value_ = 0;
   bool is_neg_ = false;

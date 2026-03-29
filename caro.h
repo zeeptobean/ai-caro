@@ -26,6 +26,9 @@ class Caro {
   char player_mark_ = kMarkX;
   char computer_mark_ = kMarkO;
 
+  unsigned player_moves_ = 0;
+  unsigned computer_moves_ = 0;
+
  public:
   enum GameState { kNormal, kPlayerWin, kComputerWin, kDraw };
 
@@ -57,6 +60,9 @@ class Caro {
 
   char GetPlayerMark() const { return player_mark_; }
   char GetComputerMark() const { return computer_mark_; }
+
+  unsigned GetPlayerMovesCount() const { return player_moves_; }
+  unsigned GetComputerMovesCount() const { return computer_moves_; }
 };
 
 #endif  // AICARO_CARO_H

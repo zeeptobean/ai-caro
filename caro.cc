@@ -37,10 +37,15 @@ void Caro::Display() const {
 }
 
 [[nodiscard]] bool Caro::PlaceMove(unsigned row, unsigned col, char mark) {
-  if (row >= n_ || col >= m_ || board_[row][col] != '.') {
+  if (row >= n_ || col >= m_ || board_[row][col] != kEmptyCell) {
     return false;  // Invalid move
   }
   board_[row][col] = mark;
+  if (mark == GetPlayerMark()) {
+    player_moves_++;
+  } else {
+    computer_moves_++;
+  }
 
   const auto& pp = zobrist_table_.at(row).at(col);
   current_hash_ ^= (mark == GetPlayerMark()) ? pp.first : pp.second;
@@ -53,7 +58,12 @@ void Caro::UndoMove(unsigned row, unsigned col) {
     char& mark = board_.at(row).at(col);
     current_hash_ ^= (mark == GetPlayerMark()) ? pp.first : pp.second;
 
-    mark = '.';
+    if (mark == GetPlayerMark()) {
+      player_moves_--;
+    } else {
+      computer_moves_--;
+    }
+    mark = kEmptyCell;
   }
 }
 
@@ -99,7 +109,7 @@ Caro::GameState Caro::CheckGameState() const {
 
   for (unsigned i = 0; i < n_; i++) {
     for (unsigned j = 0; j < m_; j++) {
-      if (board_.at(i).at(j) != '.') {
+      if (board_.at(i).at(j) != kEmptyCell) {
         has_pieces = true;
         continue;
       }
@@ -111,7 +121,7 @@ Caro::GameState Caro::CheckGameState() const {
 
       for (int r = start_y; r <= end_y; r++) {
         for (int c = start_x; c <= end_x; c++) {
-          if (board_.at(static_cast<unsigned>(r)).at(static_cast<unsigned>(c)) != '.') {
+          if (board_.at(static_cast<unsigned>(r)).at(static_cast<unsigned>(c)) != kEmptyCell) {
             moves.push_back({i, j});
             goto Caro_GetCandidateMoves_LoopCont;
           }
