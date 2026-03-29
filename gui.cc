@@ -227,9 +227,6 @@ void UiApplication::DrawGameBoard() {
           (void)game_->PlaceMove(i, j, game_->GetPlayerMark());
           player_turn_ = !player_turn_;
           move_history_.emplace_back(i, j, true);
-          if (game_->CheckGameState() != Caro::GameState::kNormal) {
-            in_game_ = false;
-          }
         }
 
         // Draw cell
