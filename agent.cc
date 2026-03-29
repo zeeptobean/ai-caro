@@ -22,11 +22,6 @@ std::pair<unsigned, unsigned> Agent::GetMove(Caro game_state) {
   return best_move_;
 }
 
-bool Agent::CheckTimeCondition() {
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  return true;
-}
-
 void Agent::CheckTime() {
   while (CheckTimeCondition()) {
     if (cancel_signal_.load(std::memory_order_relaxed)) {

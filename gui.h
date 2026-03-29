@@ -18,6 +18,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "agent.h"
@@ -35,8 +36,10 @@ class UiApplication {
   GLFWwindow* window_ = nullptr;
   bool dark_theme_ = true;
   float font_size_ = 11.0f;
-  const char* kBotOptions[3] = {"AB", "ANTS", "MCTS"};
+  const char* kBotOptions[4] = {"AB", "AB LazySMP", "ANTS", "MCTS"};
   const float kSymbolThickness = 2.5f, kSymbolPadding = 6.0f, kLastMoveThickness = 2.0f;
+
+  int num_threads_ = static_cast<int>(std::thread::hardware_concurrency());
 
   int n_ = 10, m_ = 10, k_ = 5;
   int move_radius_ = 3;

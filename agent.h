@@ -10,7 +10,6 @@
 class Agent {
   std::chrono::steady_clock::time_point start_time_;
   std::atomic<bool> cancel_signal_{false};
-  struct TimeOutException : public std::exception {};
 
  public:
   virtual ~Agent() = default;
@@ -32,9 +31,11 @@ class Agent {
   // Default implementation, should be overridden
   virtual void GetMoveImpl(Caro&, const std::vector<std::pair<unsigned, unsigned>>&) {}
 
-  // Default check time condition, default to wait 50ms
+  // Default check time condition
   // Can be overridden for finer control
-  virtual bool CheckTimeCondition();
+  virtual bool CheckTimeCondition() { return true; }
+
+  struct TimeOutException : public std::exception {};
 };
 
 #endif  // AICARO_AGENT_H

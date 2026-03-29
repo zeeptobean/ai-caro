@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "alpha_beta.h"
+#include "lazy_smp.h"
 
 static void glfw_error_callback(int error, const char* description) {
   std::cerr << std::format("GLFW Error {}: {}\n", error, description);
@@ -148,13 +149,20 @@ void UiApplication::Draw() {
     for (int i = 0; i < IM_ARRAYSIZE(kBotOptions); i++) {
       bool is_selected = (bot_index == i);
       int flags = 0;
-      if (i != 0) flags |= ImGuiSelectableFlags_Disabled;
+      if (i != 0 && i != 1) flags |= ImGuiSelectableFlags_Disabled;
       if (ImGui::Selectable(kBotOptions[i], is_selected, flags)) {
         bot_index = i;
       }
       if (is_selected) ImGui::SetItemDefaultFocus();
     }
     ImGui::EndCombo();
+  }
+
+  if (bot_index == 1) {
+    ImGui::SetNextItemWidth(100.0f);
+    if (ImGui::InputInt("Thread counts", &num_threads_)) {
+      if (num_threads_ < 1) num_threads_ = 1;
+    }
   }
 
   ImGui::SetNextItemWidth(100.0f);
@@ -362,9 +370,9 @@ void UiApplication::StartGame(int bot_index, unsigned time_limit, bool player_st
     case 0:
       bot_ = std::make_shared<AlphaBetaAgent>(time_limit, move_radius_);
       break;
-    // case 1:
-    // bot = new YBWCAgent(k, time_limit);
-    // break;
+    case 1:
+      bot_ = std::make_shared<LazySmpAgent>(time_limit, num_threads_, move_radius_);
+      break;
     default:
       throw std::runtime_error("Invalid bot index. This should never happen");
       break;
