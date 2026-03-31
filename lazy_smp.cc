@@ -93,107 +93,57 @@ Integer LazySmpAgent::TerminalScore(Caro::GameState state, int depth) {
 }
 
 Integer LazySmpAgent::EvaluateBoard(const Caro& state) const {
-  auto [rows, cols] = state.GetBoardSize();
-  unsigned k = state.GetK();
-  bool is_player_next_turn = (state.GetPlayerMovesCount() == state.GetComputerMovesCount());
-  bool is_comp_turn = !is_player_next_turn;
+  int64_t total_score = 0;
+  auto [n, m] = state.GetBoardSize();
 
-  auto evaluate_line = [&](int r, int c, int dr, int dc, char target_mark, char opp_mark,
-                           bool is_my_turn) -> Integer {
-    Integer score = Integer::Zero();
-    std::vector<char> line;
+  auto evaluate_window = [&](unsigned y, unsigned x, int dy, int dx) {
+    int comp_count = 0;
+    int player_count = 0;
 
-    while (r >= 0 && r < static_cast<int>(rows) && c >= 0 && c < static_cast<int>(cols)) {
-      line.push_back(state.GetCell(static_cast<unsigned>(r), static_cast<unsigned>(c)));
-      r += dr;
-      c += dc;
-    }
+    for (unsigned step = 0; step < state.GetK(); ++step) {
+      int tnx = static_cast<int>(x) + static_cast<int>(step) * dx;
+      int tny = static_cast<int>(y) + static_cast<int>(step) * dy;
 
-    if (line.size() < k) return Integer::Zero();
-
-    // Sliding window
-    for (size_t i = 0; i <= line.size() - k; ++i) {
-      unsigned target_count = 0;
-      unsigned opp_count = 0;
-
-      for (size_t j = 0; j < k; ++j) {
-        if (line[i + j] == target_mark)
-          target_count++;
-        else if (line[i + j] == opp_mark)
-          opp_count++;
+      if (tnx < 0 || tny < 0 || tnx >= static_cast<int>(m) || tny >= static_cast<int>(n)) {
+        return;
       }
 
-      if (target_count > 0 && opp_count == 0) {
-        unsigned missing = k - target_count;
+      unsigned nx = static_cast<unsigned>(tnx);
+      unsigned ny = static_cast<unsigned>(tny);
 
-        if (is_my_turn) {
-          if (missing == 0)
-            score += Integer(10000000);  // k stones
-          else if (missing == 1)
-            score += Integer(500000);  // k-1 stones (Unstoppable win)
-          else if (missing == 2)
-            score += Integer(10000);  // k-2 stones (Will become k-1)
-          else if (missing == 3)
-            score += Integer(500);  // k-3 stones
-          else
-            score += Integer(50);  // k-4 or smaller
-        } else {
-          if (missing == 0)
-            score += Integer(10000000);  // k stones
-          else if (missing == 1)
-            score += Integer(100000);  // k-1 stones (Forces a block)
-          else if (missing == 2)
-            score += Integer(1000);  // k-2 stones (Standard threat)
-          else if (missing == 3)
-            score += Integer(100);  // k-3 stones
-          else
-            score += Integer(10);  // k-4 or smaller
-        }
+      char cell = state.GetCell(ny, nx);
+      if (cell == state.GetComputerMark()) {
+        comp_count++;
+      } else if (cell == state.GetPlayerMark()) {
+        player_count++;
       }
     }
-    return score;
+
+    // Score the window
+    if (comp_count > 0 && player_count == 0) {
+      // Only computer marks (Unblocked)
+      int64_t value = 1;
+      for (int i = 0; i < comp_count; ++i) value *= 10;
+      total_score += value;
+    } else if (player_count > 0 && comp_count == 0) {
+      // Only player marks (Unblocked)
+      int64_t value = 1;
+      for (int i = 0; i < player_count; ++i) value *= 10;
+      total_score -= value;
+    }
+    // If both > 0, the line is blocked, score is 0 (we do nothing)
   };
 
-  auto evaluate_all_lines_for_mark = [&](char mark, char opp_mark, bool is_my_turn) -> Integer {
-    Integer total_score = Integer::Zero();
-    // bool buff = (mark == state.GetComputerMark()) ? !is_player_next_turn : is_player_next_turn;
-
-    // 1. Evaluate Rows (Horizontal: dr=0, dc=1)
-    for (int r = 0; r < static_cast<int>(rows); ++r) {
-      total_score += evaluate_line(r, 0, 0, 1, mark, opp_mark, is_my_turn);
+  for (unsigned i = 0; i < n; ++i) {
+    for (unsigned j = 0; j < m; ++j) {
+      evaluate_window(i, j, 0, 1);   // Horizontal
+      evaluate_window(i, j, 1, 0);   // Vertical
+      evaluate_window(i, j, 1, 1);   // Diagonal down
+      evaluate_window(i, j, 1, -1);  // Diagonal up
     }
+  }
 
-    // 2. Evaluate Columns (Vertical: dr=1, dc=0)
-    for (int c = 0; c < static_cast<int>(cols); ++c) {
-      total_score += evaluate_line(0, c, 1, 0, mark, opp_mark, is_my_turn);
-    }
-
-    // 3. Evaluate Diagonals (Down-Right: dr=1, dc=1)
-    for (int c = 0; c < static_cast<int>(cols); ++c) {
-      total_score += evaluate_line(0, c, 1, 1, mark, opp_mark, is_my_turn);
-    }
-    for (int r = 1; r < static_cast<int>(rows); ++r) {
-      total_score += evaluate_line(r, 0, 1, 1, mark, opp_mark, is_my_turn);
-    }
-
-    // 4. Evaluate Diagonals (Down-Left: dr=1, dc=-1)
-    for (int c = 0; c < static_cast<int>(cols); ++c) {
-      total_score += evaluate_line(0, c, 1, -1, mark, opp_mark, is_my_turn);
-    }
-    for (int r = 1; r < static_cast<int>(rows); ++r) {
-      total_score +=
-          evaluate_line(r, static_cast<int>(cols) - 1, 1, -1, mark, opp_mark, is_my_turn);
-    }
-
-    return total_score;
-  };
-
-  Integer bot_score =
-      evaluate_all_lines_for_mark(state.GetComputerMark(), state.GetPlayerMark(), is_comp_turn);
-  Integer player_score = evaluate_all_lines_for_mark(state.GetPlayerMark(), state.GetComputerMark(),
-                                                     is_player_next_turn);
-
-  return bot_score - player_score;
+  return Integer(total_score);
 }
 
 Integer LazySmpAgent::AlphaBeta(Caro& state, int depth, Integer alpha, Integer beta,
