@@ -42,7 +42,7 @@ target("ai-caro")
                 "-Werror",
                 "-Wall", "-Wextra", "-pedantic", "-Wshadow", 
                 "-Wformat=2", "-Wfloat-equal", "-Wconversion", 
-                "-Wcast-qual", "-Wcast-align", "-march=nehalem"
+                "-Wcast-qual", "-Wcast-align", "-march=native"
             )
 
             if is_mode("release") then
